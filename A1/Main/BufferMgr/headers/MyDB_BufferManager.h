@@ -75,29 +75,25 @@ public:
 			// get the victim
 			ClockUnit *unit = this->clock.at(this->clockHand);
 			// the pointer at clock position i will be buffer + i * pageSize
-			void *byte = this->buffer + this->clockHand * this->pageSize;
+			void *buffer = this->buffer + this->clockHand * this->pageSize;
 
 			auto victim = unit->base;
 			if (victim != nullptr)
 			{
-				// deal with the origin page
-				auto victimPage = victim->getPage();
-				// no longer buffered;
-				victimPage->setBuffered(false);
-				// TODO: if it is dirty, wrtie back
-				bool dirty = victimPage->getDirty();
-
-				// wipe out the page
-				memset(byte, 0, this->pageSize);
+				// remove the victim from page table
 				this->pageTable.erase({whichTable, i});
+				// remove the victim page
+				delete victim->getPage();
+				// remove the hander base
+				delete victim;
 			}
 			// update the referenced bit according to initialization
 			unit->referenced = this->initialized;
 
 			// create page using the space, no need to worry about original page
-			auto *page = new MyDB_Page(false, i, byte);
+			auto *page = new MyDB_Page(buffer, this->pageSize, false, this->clockHand, whichTable);
 			// create base
-			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page, this->pageSize, whichTable);
+			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page);
 			// update the clock
 			unit->base = base;
 			// update page table

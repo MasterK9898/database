@@ -5,8 +5,6 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include <fcntl.h>
-#include <unistd.h>
 #include "MyDB_Page.h"
 #include "MyDB_Table.h"
 
@@ -26,16 +24,6 @@ public:
 	// secondary storage.
 	void *getBytes()
 	{
-		if (!this->page->getBuffered())
-		// if the page is not currently in the buffer, then the contents of the page are loaded from secondary storage.
-		{
-			int fd = open(this->table->getStorageLoc().c_str(), O_CREAT | O_RDONLY | S_IRUSR | O_SYNC);
-			size_t offset = this->page->getPageIndex() * this->pageSize;
-			lseek(fd, offset, SEEK_SET);
-			read(fd, this->page->getBytes(), this->pageSize);
-			close(fd);
-			this->page->setBuffered(true);
-		}
 		return this->page->getBytes();
 	}
 
@@ -66,9 +54,8 @@ public:
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
 	// init the page handle
-	MyDB_PageHandleBase(MyDB_Page *page, size_t pageSize, MyDB_TablePtr whichTable) : table(whichTable), pageSize(pageSize)
+	MyDB_PageHandleBase(MyDB_Page *page) : page(page)
 	{
-		this->page = page;
 		this->page->addRef();
 	}
 
@@ -85,10 +72,6 @@ private:
 	int count;
 	// pointer to page
 	MyDB_Page *page;
-	// know which table it is
-	MyDB_TablePtr table;
-	// know the page size
-	size_t pageSize;
 };
 
 #endif

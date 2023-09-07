@@ -3,7 +3,10 @@
 #define PAGE_H
 
 #include <iostream>
+#include <fcntl.h>
+#include <unistd.h>
 #include "MyDB_BufferManager.h"
+#include "MyDB_Table.h"
 
 using namespace std;
 // a page object that stores the meat
@@ -12,11 +15,23 @@ class MyDB_Page
 
 public:
   // when first created, the page is guaranteened for the area of space
-  MyDB_Page(bool pinned, long index, void *pointer) : pinned(pinned), pageIndex(index), bytes(pointer) {}
+  MyDB_Page(void *buffer, size_t pageSize, bool pinned, long index, MyDB_TablePtr whichTable)
+      : pinned(pinned), pageIndex(index), buffer(buffer), pageSize(pageSize), table(whichTable), buffered(false) {}
 
   // whipe out the data when destroyed
   ~MyDB_Page()
   {
+    if (this->dirty)
+    // wrtie back if dirty
+    {
+      int fd = open(this->table->getStorageLoc().c_str(), O_CREAT | O_RDWR | S_IWUSR | S_IRUSR | O_SYNC);
+      lseek(fd, this->getOffset(), SEEK_SET);
+      write(fd, this->buffer, this->pageSize);
+      close(fd);
+    }
+
+    // wipe out the page
+    memset(this->buffer, 0, this->pageSize);
   }
 
   // DATA METHODS
@@ -24,9 +39,17 @@ public:
   // get the data
   void *getBytes()
   {
-    return this->bytes;
+    if (!this->buffered)
+    // if the page is not currently in the buffer, then the contents of the page are loaded from secondary storage.
+    {
+      int fd = open(this->table->getStorageLoc().c_str(), O_CREAT | O_RDONLY | S_IRUSR | O_SYNC);
+      lseek(fd, this->getOffset(), SEEK_SET);
+      read(fd, this->buffer, this->pageSize);
+      close(fd);
+      this->setBuffered(true);
+    }
+    return this->buffer;
   }
-
   // REFERENCE COUNT METHODS
 
   // increment the reference count
@@ -120,18 +143,30 @@ public:
 private:
   // the index of the page, to calculate offset
   long pageIndex;
+  // the table this page belongs to
+  MyDB_TablePtr table;
   // pinned or not
   bool pinned;
   // dirty or not
   bool dirty;
   // the meat
-  void *bytes;
+  void *buffer;
   // reference count
   int ref;
   // last modifed
   size_t timeStamp;
   // buffered or not, if not then need to retrive from disk
+  // if will be fase when inited, and become true after first retireve
+  // proxy mode
   bool buffered;
+  // page size
+  size_t pageSize;
+
+  // calc the index to read or wrtie from the disk file
+  size_t getOffset()
+  {
+    return this->pageIndex * this->pageSize;
+  }
 };
 
 #endif
