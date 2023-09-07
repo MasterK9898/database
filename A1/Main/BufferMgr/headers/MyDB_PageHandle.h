@@ -48,13 +48,18 @@ public:
 		// If the number of references to a pinned page goes down to zero, then the page should become unpinned.
 		{
 			this->page->setPinned(false);
+			// if it's anonymous then directly destroy it
+			if (this->anonymous)
+			{
+				delete this->page;
+			}
 		}
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
 	// init the page handle
-	MyDB_PageHandleBase(MyDB_Page *page) : page(page)
+	MyDB_PageHandleBase(MyDB_Page *page, bool anonymous) : page(page), anonymous(anonymous)
 	{
 		this->page->addRef();
 	}
@@ -72,6 +77,8 @@ private:
 	int count;
 	// pointer to page
 	MyDB_Page *page;
+	// anonymous or not
+	bool anonymous;
 };
 
 #endif

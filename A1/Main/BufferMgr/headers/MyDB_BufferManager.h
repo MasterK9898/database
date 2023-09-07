@@ -16,9 +16,9 @@ using namespace std;
 // A hash function used to hash the pair
 struct hashPair
 {
-	std::size_t operator()(const std::pair<MyDB_TablePtr, long> &p) const
+	std::size_t operator()(const std::pair<string, long> &p) const
 	{
-		auto ptr_hash = std::hash<void *>{}(p.first.get());
+		auto ptr_hash = std::hash<string>{}(p.first);
 		auto long_hash = std::hash<long>{}(p.second);
 
 		return ptr_hash ^ long_hash;
@@ -62,6 +62,7 @@ public:
 	// table
 	MyDB_PageHandle getPage()
 	{
+		return this->getPage(nullptr, -1);
 	}
 
 	// gets the i^th page in the table whichTable... the only difference
@@ -73,7 +74,10 @@ public:
 	}
 
 	// gets a temporary page, like getPage (), except that this one is pinned
-	MyDB_PageHandle getPinnedPage();
+	MyDB_PageHandle getPinnedPage()
+	{
+		return this->getPage(nullptr, -1, true);
+	}
 
 	// un-pins the specified page
 	void unpin(MyDB_PageHandle unpinMe)
@@ -85,7 +89,8 @@ public:
 	// 1) the size of each page is pageSize
 	// 2) the number of pages managed by the buffer manager is numPages;
 	// 3) temporary pages are written to the file tempFile
-	MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : pageSize(pageSize), clockHand(0), numPages(numPages)
+	MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile)
+			: pageSize(pageSize), clockHand(0), numPages(numPages), anonymousFile(tempFile)
 	{
 		// all clock position are set to be default
 		clock.resize(numPages, &ClockUnit());
@@ -105,6 +110,8 @@ public:
 			auto unit = this->clock.at(clockIndex);
 			this->evict(unit);
 		}
+
+		// kill temperarry file
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
@@ -127,6 +134,20 @@ private:
 	size_t pageSize;
 	// number of pages
 	size_t numPages;
+
+	// IMPLEMENTING PAGE TABLE
+
+	// the page table
+	// table points to the position on clock
+	std::unordered_map<pair<string, long>, size_t, hashPair> pageTable;
+
+	// FOR ANONYMOUS FILES
+
+	// keep track of the index
+	size_t anonymousIndex;
+
+	// keep the file for anonymous pages
+	string anonymousFile;
 
 	// evict a page for the new page, the clock hand will be the new place to evict
 	// also return the clock hand
@@ -172,21 +193,31 @@ private:
 		throw std::runtime_error("exception");
 	}
 
-	// IMPLEMENTING PAGE TABLE
-
-	// the page table
-	// table points to the position on clock
-	std::unordered_map<pair<MyDB_TablePtr, long>, size_t, hashPair> pageTable;
-
-	// unifies the logic of get pinned and unpinned non anonymus page
+	// unifies the logic getting any kind of page
+	// if i is negative then it is considered as anonymous
 	MyDB_PageHandle getPage(MyDB_TablePtr whichTable, long i, bool pinned)
 	{
-		if (pageTable.count({whichTable, i}))
+		// pass in negative i means anonymous
+		bool anonymous = i < 0;
+
+		long pageIndex = anonymous ? this->anonymousIndex : i;
+		string filename = anonymous ? this->anonymousFile : whichTable->getStorageLoc();
+
+		if (anonymous)
+		// increment the index
+		{
+			this->anonymousIndex++;
+		}
+
+		auto key = make_pair(filename, pageIndex);
+
+		if (pageTable.count(key))
+
 		// if the page is currently being used (that is, the page is current buffered) a handle
 		// to that already-buffered page should be returned
 		{
 			// get the index from table and retrive the unit
-			size_t clockIndex = this->pageTable[{whichTable, i}];
+			size_t clockIndex = this->pageTable[key];
 			ClockUnit *unit = this->clock.at(clockIndex);
 			// update reference bit
 			unit->referenced = true;
@@ -214,13 +245,13 @@ private:
 			unit->referenced = this->initialized;
 
 			// create page using the space, no need to worry about original page
-			auto *page = new MyDB_Page(buffer, this->pageSize, pinned, i, whichTable);
+			auto *page = new MyDB_Page(buffer, this->pageSize, pinned, pageIndex, filename);
 			// create base
-			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page);
+			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page, anonymous);
 			// update the clock
 			unit->base = base;
 			// update page table
-			this->pageTable[{whichTable, i}] = this->clockHand;
+			this->pageTable[key] = this->clockHand;
 			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
 			return handle;
 		}
@@ -234,7 +265,7 @@ private:
 		{
 			auto victimPage = victim->getPage();
 			// remove the victim from page table
-			this->pageTable.erase({victimPage->getTable(), victimPage->getPageIndex()});
+			this->pageTable.erase({victimPage->getPageFilename(), victimPage->getPageIndex()});
 			// remove the victim page
 			delete victimPage;
 			// remove the hander base

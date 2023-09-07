@@ -15,16 +15,21 @@ class MyDB_Page
 
 public:
   // when first created, the page is guaranteened for the area of space
-  MyDB_Page(void *buffer, size_t pageSize, bool pinned, long index, MyDB_TablePtr whichTable)
-      : pinned(pinned), pageIndex(index), buffer(buffer), pageSize(pageSize), table(whichTable), buffered(false) {}
-
+  MyDB_Page(void *buffer, size_t pageSize, bool pinned, long index, string filename)
+      : pinned(pinned), pageIndex(index), buffer(buffer), pageSize(pageSize), filename(filename)
+  {
+    int fd = open(this->filename.c_str(), O_CREAT | O_RDONLY | S_IRUSR | O_SYNC);
+    lseek(fd, this->getOffset(), SEEK_SET);
+    read(fd, this->buffer, this->pageSize);
+    close(fd);
+  }
   // whipe out the data when destroyed
   ~MyDB_Page()
   {
     if (this->dirty)
     // wrtie back if dirty
     {
-      int fd = open(this->table->getStorageLoc().c_str(), O_CREAT | O_RDWR | S_IWUSR | S_IRUSR | O_SYNC);
+      int fd = open(this->filename.c_str(), O_CREAT | O_RDWR | S_IWUSR | S_IRUSR | O_SYNC);
       lseek(fd, this->getOffset(), SEEK_SET);
       write(fd, this->buffer, this->pageSize);
       close(fd);
@@ -39,15 +44,6 @@ public:
   // get the data
   void *getBytes()
   {
-    if (!this->buffered)
-    // if the page is not currently in the buffer, then the contents of the page are loaded from secondary storage.
-    {
-      int fd = open(this->table->getStorageLoc().c_str(), O_CREAT | O_RDONLY | S_IRUSR | O_SYNC);
-      lseek(fd, this->getOffset(), SEEK_SET);
-      read(fd, this->buffer, this->pageSize);
-      close(fd);
-      this->setBuffered(true);
-    }
     return this->buffer;
   }
   // REFERENCE COUNT METHODS
@@ -98,20 +94,6 @@ public:
     return this->dirty;
   }
 
-  // BUFFERED METHOD
-
-  // check if this page is buffered or not
-  bool getBuffered()
-  {
-    return this->buffered;
-  }
-
-  // set this page is buffered or not
-  void setBuffered(bool buffered)
-  {
-    this->buffered = buffered;
-  }
-
   // TIME STAMP METHODS
 
   // get the last accessed time
@@ -140,17 +122,17 @@ public:
   //   this->pageIndex = index;
   // }
 
-  // get the table
-  MyDB_TablePtr getTable()
+  // get the filename
+  string getPageFilename()
   {
-    return this->table;
+    return this->filename;
   }
 
 private:
   // the index of the page, to calculate offset
   long pageIndex;
   // the table this page belongs to
-  MyDB_TablePtr table;
+  string filename;
   // pinned or not
   bool pinned;
   // dirty or not
@@ -161,10 +143,6 @@ private:
   int ref;
   // last modifed
   size_t timeStamp;
-  // buffered or not, if not then need to retrive from disk
-  // if will be fase when inited, and become true after first retireve
-  // proxy mode
-  bool buffered;
   // page size
   size_t pageSize;
 
