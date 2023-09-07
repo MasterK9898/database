@@ -7,6 +7,7 @@
 #include <utility>
 #include <memory>
 #include <ctime>
+#include <cstdio>
 #include "MyDB_PageHandle.h"
 #include "MyDB_Table.h"
 #include "MyDB_Page.h"
@@ -112,6 +113,7 @@ public:
 		}
 
 		// kill temperarry file
+		remove(this->anonymousFile.c_str());
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
