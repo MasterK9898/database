@@ -126,7 +126,7 @@ public:
     this->timeStamp = timeStamp;
   }
 
-  // PAGE INDEX METHOD
+  // TABLE AND INDEX METHOD
 
   // get current page index
   long getPageIndex()
@@ -135,9 +135,15 @@ public:
   }
 
   // set the page index
-  void setPageIndex(long index)
+  // void setPageIndex(long index)
+  // {
+  //   this->pageIndex = index;
+  // }
+
+  // get the table
+  MyDB_TablePtr getTable()
   {
-    this->pageIndex = index;
+    return this->table;
   }
 
 private:

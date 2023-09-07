@@ -52,55 +52,7 @@ public:
 	// to that already-buffered page should be returned
 	MyDB_PageHandle getPage(MyDB_TablePtr whichTable, long i)
 	{
-		if (pageTable.count({whichTable, i}))
-		// if the page is currently being used (that is, the page is current buffered) a handle
-		// to that already-buffered page should be returned
-		{
-			size_t clockIndex = this->pageTable[{whichTable, i}];
-			ClockUnit *unit = this->clock.at(this->clockHand);
-			// update reference bit
-			unit->referenced = true;
-			// retrive the page
-			MyDB_PageHandleBase *base = unit->base;
-			size_t currentTime = time(0);
-			base->getPage()->setTimeStamp(currentTime);
-			// make the handle
-			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
-			return handle;
-		}
-		else
-		// create the page from scratch
-		{
-			this->evict();
-			// get the victim
-			ClockUnit *unit = this->clock.at(this->clockHand);
-			// the pointer at clock position i will be buffer + i * pageSize
-			void *buffer = this->buffer + this->clockHand * this->pageSize;
-
-			auto victim = unit->base;
-			if (victim != nullptr)
-			{
-				// remove the victim from page table
-				this->pageTable.erase({whichTable, i});
-				// remove the victim page
-				delete victim->getPage();
-				// remove the hander base
-				delete victim;
-			}
-			// update the referenced bit according to initialization
-			unit->referenced = this->initialized;
-
-			// create page using the space, no need to worry about original page
-			auto *page = new MyDB_Page(buffer, this->pageSize, false, this->clockHand, whichTable);
-			// create base
-			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page);
-			// update the clock
-			unit->base = base;
-			// update page table
-			this->pageTable[{whichTable, i}] = this->clockHand;
-			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
-			return handle;
-		}
+		return this->getPage(whichTable, i, false);
 	}
 
 	// gets a temporary page that will no longer exist (1) after the buffer manager
@@ -115,13 +67,19 @@ public:
 	// gets the i^th page in the table whichTable... the only difference
 	// between this method and getPage (whicTable, i) is that the page will be
 	// pinned in RAM; it cannot be written out to the file
-	MyDB_PageHandle getPinnedPage(MyDB_TablePtr whichTable, long i);
+	MyDB_PageHandle getPinnedPage(MyDB_TablePtr whichTable, long i)
+	{
+		return this->getPage(whichTable, i, false);
+	}
 
 	// gets a temporary page, like getPage (), except that this one is pinned
 	MyDB_PageHandle getPinnedPage();
 
 	// un-pins the specified page
-	void unpin(MyDB_PageHandle unpinMe);
+	void unpin(MyDB_PageHandle unpinMe)
+	{
+		unpinMe->getPage()->setPinned(false);
+	}
 
 	// creates an LRU buffer manager... params are as follows:
 	// 1) the size of each page is pageSize
@@ -138,7 +96,16 @@ public:
 	// when the buffer manager is destroyed, all of the dirty pages need to be
 	// written back to disk, any necessary data needs to be written to the catalog,
 	// and any temporary files need to be deleted
-	~MyDB_BufferManager();
+	~MyDB_BufferManager()
+	{
+		// kill them all
+		for (auto &pair : this->pageTable)
+		{
+			size_t clockIndex = pair.second;
+			auto unit = this->clock.at(clockIndex);
+			this->evict(unit);
+		}
+	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
@@ -162,7 +129,8 @@ private:
 	size_t numPages;
 
 	// evict a page for the new page, the clock hand will be the new place to evict
-	void evict()
+	// also return the clock hand
+	size_t findVictim()
 	{
 		// prevent infinite loop
 		size_t pinnedCount = 0;
@@ -199,7 +167,7 @@ private:
 				continue;
 			}
 			// this pages will be evicted
-			return;
+			return this->clockHand;
 		}
 		throw std::runtime_error("exception");
 	}
@@ -209,6 +177,70 @@ private:
 	// the page table
 	// table points to the position on clock
 	std::unordered_map<pair<MyDB_TablePtr, long>, size_t, hashPair> pageTable;
+
+	// unifies the logic of get pinned and unpinned non anonymus page
+	MyDB_PageHandle getPage(MyDB_TablePtr whichTable, long i, bool pinned)
+	{
+		if (pageTable.count({whichTable, i}))
+		// if the page is currently being used (that is, the page is current buffered) a handle
+		// to that already-buffered page should be returned
+		{
+			// get the index from table and retrive the unit
+			size_t clockIndex = this->pageTable[{whichTable, i}];
+			ClockUnit *unit = this->clock.at(clockIndex);
+			// update reference bit
+			unit->referenced = true;
+			// retrive the page
+			MyDB_PageHandleBase *base = unit->base;
+			size_t currentTime = time(0);
+			base->getPage()->setTimeStamp(currentTime);
+			// make the handle
+			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
+			return handle;
+		}
+		else
+		// create the page from scratch
+		{
+			size_t clockIndex = this->findVictim();
+			// get the victim
+			ClockUnit *unit = this->clock.at(clockIndex);
+			// the pointer at clock position i will be buffer + i * pageSize
+			void *buffer = this->buffer + clockIndex * this->pageSize;
+
+			// say goodbye
+			this->evict(unit);
+
+			// update the referenced bit according to initialization
+			unit->referenced = this->initialized;
+
+			// create page using the space, no need to worry about original page
+			auto *page = new MyDB_Page(buffer, this->pageSize, pinned, i, whichTable);
+			// create base
+			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page);
+			// update the clock
+			unit->base = base;
+			// update page table
+			this->pageTable[{whichTable, i}] = this->clockHand;
+			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
+			return handle;
+		}
+	}
+
+	// say goodbye to the page in this unit
+	void evict(ClockUnit *unit)
+	{
+		auto victim = unit->base;
+		if (victim != nullptr)
+		{
+			auto victimPage = victim->getPage();
+			// remove the victim from page table
+			this->pageTable.erase({victimPage->getTable(), victimPage->getPageIndex()});
+			// remove the victim page
+			delete victimPage;
+			// remove the hander base
+			delete victim;
+		}
+	}
 };
 
 #endif
