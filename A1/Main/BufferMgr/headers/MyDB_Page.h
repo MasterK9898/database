@@ -3,104 +3,134 @@
 #define PAGE_H
 
 #include <iostream>
-#include "MyDB_Table.h"
 #include "MyDB_BufferManager.h"
 
 using namespace std;
-// a page object that stores the info
+// a page object that stores the meat
 class MyDB_Page
 {
 
 public:
-  MyDB_Page(MyDB_TablePtr whichTable, bool pinned, long page_id) : table(whichTable), pinned(pinned), page_id(page_id)
+  // when first created, the page is guaranteened for the area of space
+  MyDB_Page(bool pinned, long index, void *pointer) : pinned(pinned), pageIndex(index), bytes(pointer) {}
+
+  // whipe out the data when destroyed
+  ~MyDB_Page()
   {
   }
 
-  ~MyDB_Page();
+  // DATA METHODS
 
-  void *getBytes();
-
-  void wroteBytes()
+  // get the data
+  void *getBytes()
   {
-    this->dirty = true;
+    return this->bytes;
   }
 
+  // REFERENCE COUNT METHODS
+
+  // increment the reference count
   void addRef()
   {
-    this->refCount++;
+    this->ref++;
   }
 
+  // decrement the reference count
   void removeRef()
   {
-    this->refCount--;
+    this->ref--;
   }
 
+  // get the reference count
+  int getRef()
+  {
+    return this->ref;
+  }
+
+  // PINNED METHODS
+
+  // set the pinned status
   void setPinned(bool pinned)
   {
     this->pinned = pinned;
   }
 
+  // get the pinned status
   bool getPinned()
   {
     return this->pinned;
   }
 
-  long getTimeStamp()
-  {
-    return this->timeStamp;
-  }
+  // DIRTY METHODS
 
-  void setTimeStamp(long timeStamp)
-  {
-    this->timeStamp = timeStamp;
-  }
-
-  MyDB_TablePtr getTable()
-  {
-    return this->table;
-  }
-
-  long getPageID()
-  {
-    return this->page_id;
-  }
-
-  bool getBuffered()
-  {
-    return this->buffered;
-  }
-
-  void setBuffered(bool buffered)
-  {
-    this->buffered = buffered;
-  }
-
+  // set dirty bit
   void setDirty(bool dirty)
   {
     this->dirty = dirty;
   }
 
+  // get dirty bit
   bool getDirty()
   {
     return this->dirty;
   }
 
-private:
-  friend class MyDB_BufferManager; // solve the problem of inaccessible
+  // BUFFERED METHOD
 
-  // MyDB_BufferManager &bufferManager;
-  MyDB_TablePtr table;
-  long page_id;
-  //
+  // check if this page is buffered or not
+  bool getBuffered()
+  {
+    return this->buffered;
+  }
+
+  // set this page is buffered or not
+  void setBuffered(bool buffered)
+  {
+    this->buffered = buffered;
+  }
+
+  // TIME STAMP METHODS
+
+  // get the last accessed time
+  size_t getTimeStamp()
+  {
+    return this->timeStamp;
+  }
+
+  // set the last modified time
+  void setTimeStamp(size_t timeStamp)
+  {
+    this->timeStamp = timeStamp;
+  }
+
+  // PAGE INDEX METHOD
+
+  // get current page index
+  long getPageIndex()
+  {
+    return this->pageIndex;
+  }
+
+  // set the page index
+  void setPageIndex(long index)
+  {
+    this->pageIndex = index;
+  }
+
+private:
+  // the index of the page, to calculate offset
+  long pageIndex;
+  // pinned or not
   bool pinned;
   // dirty or not
   bool dirty;
+  // the meat
   void *bytes;
   // reference count
-  int refCount;
+  int ref;
   // last modifed
-  long timeStamp;
-  // buffered
+  size_t timeStamp;
+  // buffered or not, if not then need to retrive from disk
   bool buffered;
 };
 
