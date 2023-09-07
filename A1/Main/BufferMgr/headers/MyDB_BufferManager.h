@@ -29,17 +29,7 @@ struct hashPair
 struct ClockUnit
 {
 	bool referenced;
-	MyDB_PageHandleBase *base;
-	ClockUnit()
-	{
-		referenced = false;
-		base = nullptr;
-	};
-	ClockUnit(bool referenced, MyDB_PageHandleBase base)
-	{
-		referenced = referenced;
-		base = base;
-	};
+	MyDB_PageHandle handle;
 };
 
 class MyDB_BufferManager
@@ -91,12 +81,12 @@ public:
 	// 2) the number of pages managed by the buffer manager is numPages;
 	// 3) temporary pages are written to the file tempFile
 	MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile)
-			: pageSize(pageSize), clockHand(0), numPages(numPages), anonymousFile(tempFile)
+			: clockHand(0), pageSize(pageSize), numPages(numPages), anonymousFile(tempFile)
 	{
 		// all clock position are set to be default
-		clock.resize(numPages, &ClockUnit());
+		clock.resize(numPages, nullptr);
 		// initialize the buffer
-		this->buffer = calloc(pageSize, numPages);
+		this->buffer = calloc(numPages, pageSize);
 	}
 
 	// when the buffer manager is destroyed, all of the dirty pages need to be
@@ -114,6 +104,9 @@ public:
 
 		// kill temperarry file
 		remove(this->anonymousFile.c_str());
+
+		// return the memory
+		free(this->buffer);
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
@@ -155,15 +148,25 @@ private:
 	// also return the clock hand
 	size_t findVictim()
 	{
+		size_t victim = 0;
 		// prevent infinite loop
 		size_t pinnedCount = 0;
 		while (true)
 		{
+			// victim is the current clock hand
+			victim = this->clockHand;
+
 			ClockUnit *unit = this->clock.at(this->clockHand);
 
 			// increment and mod
 			this->clockHand++;
-			this->clockHand %= this->pageSize;
+			this->clockHand %= this->numPages;
+
+			// this place is not initilized, return it directly, break the loop
+			if (unit == nullptr)
+			{
+				break;
+			}
 
 			// if a new cycle is reached, then the filling up stage is over
 			if (this->clockHand == 0 && !this->initialized)
@@ -177,7 +180,7 @@ private:
 				unit->referenced = false;
 				continue;
 			}
-			auto currentPage = unit->base->getPage();
+			auto currentPage = unit->handle->getPage();
 			bool pinned = currentPage->getPinned();
 			if (pinned)
 			// pinned page will be skipped
@@ -190,9 +193,9 @@ private:
 				continue;
 			}
 			// this pages will be evicted
-			return this->clockHand;
+			break;
 		}
-		throw std::runtime_error("exception");
+		return victim;
 	}
 
 	// unifies the logic getting any kind of page
@@ -214,21 +217,23 @@ private:
 		auto key = make_pair(filename, pageIndex);
 
 		if (pageTable.count(key))
-
 		// if the page is currently being used (that is, the page is current buffered) a handle
 		// to that already-buffered page should be returned
 		{
+			std::cout << "===============found on table, retriving================" << std::endl;
 			// get the index from table and retrive the unit
 			size_t clockIndex = this->pageTable[key];
+			std::cout << "clock index " << clockIndex << std::endl;
+			std::cout << std::endl;
 			ClockUnit *unit = this->clock.at(clockIndex);
 			// update reference bit
 			unit->referenced = true;
-			// retrive the page
-			MyDB_PageHandleBase *base = unit->base;
-			size_t currentTime = time(0);
-			base->getPage()->setTimeStamp(currentTime);
-			// make the handle
-			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
+			// retrive the page handle
+			auto handle = unit->handle;
+
+			// size_t currentTime = time(0);
+			// handle->getPage()->setTimeStamp(currentTime);
+
 			return handle;
 		}
 		else
@@ -238,23 +243,35 @@ private:
 			// get the victim
 			ClockUnit *unit = this->clock.at(clockIndex);
 			// the pointer at clock position i will be buffer + i * pageSize
-			void *buffer = this->buffer + clockIndex * this->pageSize;
+			void *buffer = (char *)this->buffer + clockIndex * this->pageSize;
 
-			// say goodbye
-			this->evict(unit);
+			std::cout << "===============not found on table, arraging new unit================" << std::endl;
+			std::cout << "clock position " << clockIndex << std::endl;
+			std::cout << "calc address " << buffer << std::endl;
+			std::cout << std::endl;
+
+			if (unit != nullptr)
+			// if not know deal with the origin page
+			{
+				this->evict(unit);
+			}
+			else
+			// else init a unit and insert it
+			{
+				unit = new ClockUnit();
+				this->clock.at(clockIndex) = unit;
+			}
 
 			// update the referenced bit according to initialization
 			unit->referenced = this->initialized;
 
 			// create page using the space, no need to worry about original page
-			auto *page = new MyDB_Page(buffer, this->pageSize, pinned, pageIndex, filename);
-			// create base
-			MyDB_PageHandleBase *base = new MyDB_PageHandleBase(page, anonymous);
-			// update the clock
-			unit->base = base;
+			auto *page = new MyDB_Page(this->buffer, this->pageSize, pinned, pageIndex, filename);
 			// update page table
 			this->pageTable[key] = this->clockHand;
-			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(base);
+			// update the clock unit
+			MyDB_PageHandle handle = make_shared<MyDB_PageHandleBase>(page, anonymous);
+			unit->handle = handle;
 			return handle;
 		}
 	}
@@ -262,7 +279,7 @@ private:
 	// say goodbye to the page in this unit
 	void evict(ClockUnit *unit)
 	{
-		auto victim = unit->base;
+		auto victim = unit->handle;
 		if (victim != nullptr)
 		{
 			auto victimPage = victim->getPage();
@@ -270,8 +287,8 @@ private:
 			this->pageTable.erase({victimPage->getPageFilename(), victimPage->getPageIndex()});
 			// remove the victim page
 			delete victimPage;
-			// remove the hander base
-			delete victim;
+			// remove the smart pointer for deallocation
+			unit->handle = nullptr;
 		}
 	}
 };

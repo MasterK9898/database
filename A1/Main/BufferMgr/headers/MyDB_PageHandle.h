@@ -24,6 +24,7 @@ public:
 	// secondary storage.
 	void *getBytes()
 	{
+		std::cout << "page bytes" << this->page->getBytes() << endl;
 		return this->page->getBytes();
 	}
 
@@ -43,16 +44,21 @@ public:
 	// become unpinned.
 	~MyDB_PageHandleBase()
 	{
+		std::cout << "==========page handle being destroyed=============" << std::endl;
 		this->page->removeRef();
 		if (this->page->getRef() == 0)
 		// If the number of references to a pinned page goes down to zero, then the page should become unpinned.
 		{
+			std::cout << "==========pinned page run out of reference=============" << std::endl;
+			std::cout << "page number " << this->page->getPageIndex() << " " << this->page->getPageFilename() << std::endl;
 			this->page->setPinned(false);
 			// if it's anonymous then directly destroy it
 			if (this->anonymous)
 			{
+				std::cout << "anonymous page" << std::endl;
 				delete this->page;
 			}
+			std::cout << std::endl;
 		}
 	}
 
@@ -73,8 +79,6 @@ public:
 private:
 	// YOUR CODE HERE
 
-	// total reference
-	int count;
 	// pointer to page
 	MyDB_Page *page;
 	// anonymous or not

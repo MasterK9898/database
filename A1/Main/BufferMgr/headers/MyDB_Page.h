@@ -5,8 +5,6 @@
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
-#include "MyDB_BufferManager.h"
-#include "MyDB_Table.h"
 
 using namespace std;
 // a page object that stores the meat
@@ -16,7 +14,7 @@ class MyDB_Page
 public:
   // when first created, the page is guaranteened for the area of space
   MyDB_Page(void *buffer, size_t pageSize, bool pinned, long index, string filename)
-      : pinned(pinned), pageIndex(index), buffer(buffer), pageSize(pageSize), filename(filename)
+      : pageIndex(index), filename(filename), pinned(pinned), buffer(buffer), pageSize(pageSize)
   {
     int fd = open(this->filename.c_str(), O_CREAT | O_RDONLY | S_IRUSR | O_SYNC);
     lseek(fd, this->getOffset(), SEEK_SET);
@@ -44,6 +42,11 @@ public:
   // get the data
   void *getBytes()
   {
+
+    std::cout << "getting the target buffer at page" << std::endl;
+    std::cout << this->buffer << "buffer in page" << std::endl;
+
+    std::cout << std::endl;
     return this->buffer;
   }
   // REFERENCE COUNT METHODS
