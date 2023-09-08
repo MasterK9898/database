@@ -21,7 +21,7 @@ using namespace std;
 MyDB_PageHandle MyDB_BufferManager ::getPage(MyDB_TablePtr whichTable, long i)
 {
   // open the file
-  int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR);
+  int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR, 0666);
   this->fileTable[whichTable] = fd;
 
   // get the key
@@ -51,7 +51,7 @@ MyDB_PageHandle MyDB_BufferManager ::getPage()
 MyDB_PageHandle MyDB_BufferManager ::getPinnedPage(MyDB_TablePtr whichTable, long i)
 {
   // open the file
-  int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR);
+  int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR, 0666);
   this->fileTable[whichTable] = fd;
 
   pair<MyDB_TablePtr, long> key = make_pair(whichTable, i);
