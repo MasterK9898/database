@@ -60,7 +60,7 @@ private:
   int ref;
 
   // remaining bytes
-  size_t remaining;
+  // size_t remaining;
   // last modifed
   // size_t timeStamp;
 };

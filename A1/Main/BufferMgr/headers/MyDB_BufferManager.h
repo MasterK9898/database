@@ -81,9 +81,8 @@ private:
 	// IMPLEMENTING CLOCK
 
 	// wheather the clock is fiiled up (to determine the init reference value)
-	// bool initialized;
+	bool initialized;
 	// clock "face"
-	// TODO: ordered map seems to be a better choice
 	vector<MyDB_PagePtr> clock;
 	// current position of the clock hand
 	size_t clockHand;
@@ -121,6 +120,12 @@ private:
 
 	// get the page read on ram
 	void retrivePage(MyDB_PagePtr page);
+
+	// unify the logic of getting normal page
+	MyDB_PageHandle getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned);
+
+	// unify the logic of getting anon page
+	MyDB_PageHandle getAnonPage(bool pinned);
 };
 
 #endif
