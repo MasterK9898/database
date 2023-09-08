@@ -10,9 +10,9 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>
+#include "MyDB_Page.h"
 #include "MyDB_PageHandle.h"
 #include "MyDB_Table.h"
-#include "MyDB_Page.h"
 
 using namespace std;
 
@@ -71,7 +71,7 @@ public:
 	// table
 	MyDB_PageHandle getPage()
 	{
-		auto anonPage = make_shared<MyDB_Page>(nullptr, this->anonymousIndex++, this, true);
+		auto anonPage = make_shared<MyDB_Page>(nullptr, this->tempIndex++, this, true);
 		return make_shared<MyDB_PageHandleBase>(anonPage);
 	}
 
@@ -106,7 +106,7 @@ public:
 	// gets a temporary page, like getPage (), except that this one is pinned
 	MyDB_PageHandle getPinnedPage()
 	{
-		auto anonPage = make_shared<MyDB_Page>(nullptr, this->anonymousIndex++, *this, true);
+		auto anonPage = make_shared<MyDB_Page>(nullptr, this->tempIndex++, *this, true);
 		return make_shared<MyDB_PageHandleBase>(anonPage);
 	}
 
@@ -121,7 +121,7 @@ public:
 	// 2) the number of pages managed by the buffer manager is numPages;
 	// 3) temporary pages are written to the file tempFile
 	MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile)
-			: clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), anonymousIndex(0)
+			: clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
 	{
 		for (size_t i = 0; i < numPages; i++)
 		{
@@ -242,11 +242,10 @@ private:
 
 	// FOR ANONYMOUS FILES
 
-	// keep track of the index
-	size_t anonymousIndex;
-
 	// keep the file for anonymous pages
 	string tempFile;
+	// keep track of the index
+	size_t tempIndex;
 
 	// maintain a file table for faster performance
 	std::unordered_map<MyDB_TablePtr, int> fileTable;

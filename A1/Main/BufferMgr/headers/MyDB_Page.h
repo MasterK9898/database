@@ -3,12 +3,13 @@
 #define PAGE_H
 
 #include <memory>
-#include "MyDB_BufferManager.h"
-#include "MyDB_Page.h"
+// #include "MyDB_BufferManager.h"
+// #include "MyDB_Page.h"
 #include "MyDB_Table.h"
 
 using namespace std;
 class MyDB_Page;
+class MyDB_BufferManager;
 
 typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
 // a page object that stores the meat
@@ -33,7 +34,7 @@ public:
   ~MyDB_Page();
 
   MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned)
-      : doNotKill(false), manager(manager), table(table), pageIndex(pageIndex), ref(0), dirty(false), bytes(nullptr), remaining(0), pinned(pinned) {}
+      : bytes(nullptr), doNotKill(false), dirty(false), pinned(pinned), manager(manager), table(table), pageIndex(pageIndex), ref(0), remaining(0) {}
 
   // sets the bytes in the page
   void setBytes(void *bytes, size_t numBytes);
@@ -102,13 +103,13 @@ private:
   // this is the position of the page in the relation
   size_t pageIndex;
 
+  // the number of references
+  int ref;
+
   // remaining bytes
   size_t remaining;
   // last modifed
   // size_t timeStamp;
-
-  // the number of references
-  int ref;
 };
 
 #endif

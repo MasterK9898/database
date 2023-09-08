@@ -2,6 +2,7 @@
 #ifndef BUFFER_MGR_C
 #define BUFFER_MGR_C
 
+#include "MyDB_Page.h"
 #include "MyDB_BufferManager.h"
 #include <string>
 
