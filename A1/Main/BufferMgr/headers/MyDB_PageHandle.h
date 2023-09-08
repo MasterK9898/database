@@ -3,8 +3,7 @@
 #define PAGE_HANDLE_H
 
 #include <memory>
-#include <iostream>
-#include <fstream>
+#include <string>
 #include "MyDB_Page.h"
 #include "MyDB_Table.h"
 
@@ -24,8 +23,7 @@ public:
 	// secondary storage.
 	void *getBytes()
 	{
-		std::cout << "page bytes" << this->page->getBytes() << endl;
-		return this->page->getBytes();
+		return this->page->getBytes(this->page);
 	}
 
 	// let the page know that we have written to the bytes.  Must always
@@ -34,7 +32,7 @@ public:
 	// will never be written to disk.
 	void wroteBytes()
 	{
-		this->page->setDirty(true);
+		this->page->setDirty();
 	}
 
 	// There are no more references to the handle when this is called...
@@ -44,34 +42,19 @@ public:
 	// become unpinned.
 	~MyDB_PageHandleBase()
 	{
-		std::cout << "==========page handle being destroyed=============" << std::endl;
-		this->page->removeRef();
-		if (this->page->getRef() == 0)
-		// If the number of references to a pinned page goes down to zero, then the page should become unpinned.
-		{
-			std::cout << "==========pinned page run out of reference=============" << std::endl;
-			std::cout << "page number " << this->page->getPageIndex() << " " << this->page->getPageFilename() << std::endl;
-			this->page->setPinned(false);
-			// if it's anonymous then directly destroy it
-			if (this->anonymous)
-			{
-				std::cout << "anonymous page" << std::endl;
-				delete this->page;
-			}
-			std::cout << std::endl;
-		}
+		this->page->removeRef(page);
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
 	// init the page handle
-	MyDB_PageHandleBase(MyDB_Page *page, bool anonymous) : page(page), anonymous(anonymous)
+	MyDB_PageHandleBase(MyDB_PagePtr page) : page(page)
 	{
 		this->page->addRef();
 	}
 
 	// return the current page
-	MyDB_Page *getPage()
+	MyDB_PagePtr getPage()
 	{
 		return this->page;
 	}
@@ -80,9 +63,7 @@ private:
 	// YOUR CODE HERE
 
 	// pointer to page
-	MyDB_Page *page;
-	// anonymous or not
-	bool anonymous;
+	MyDB_PagePtr page;
 };
 
 #endif

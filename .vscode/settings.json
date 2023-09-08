@@ -68,6 +68,7 @@
     "iterator": "cpp",
     "memory_resource": "cpp",
     "random": "cpp",
-    "utility": "cpp"
+    "utility": "cpp",
+    "filesystem": "cpp"
   }
 }

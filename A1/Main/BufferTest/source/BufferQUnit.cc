@@ -73,6 +73,7 @@ int main()
 		// now forget the pages we created
 		vector<MyDB_PageHandle> temp;
 		myHandles = temp;
+		cout << "now remember 8 more pages===============================================\n";
 
 		// now remember 8 more pages
 		for (int i = 0; i < 8; i++)
@@ -91,6 +92,8 @@ int main()
 		}
 
 		// now correctly write nums at the 0th position
+
+		cout << "now correctly write nums at the 0th position===============================================\n";
 		cout << "allocating unpinned page\n";
 		MyDB_PageHandle anotherDude = myMgr.getPage(table1, 0);
 		bytes = (char *)anotherDude->getBytes();
@@ -98,6 +101,7 @@ int main()
 		anotherDude->wroteBytes();
 
 		// now do 90 more pages, for which we forget the handle immediately
+		cout << "now do 90 more pages, for which we forget the handle immediately===============================================\n";
 		for (int i = 10; i < 100; i++)
 		{
 			cout << "allocating unpinned page\n";
@@ -107,6 +111,7 @@ int main()
 			temp->wroteBytes();
 		}
 
+		cout << "now forget all of the pinned pages we were remembering===============================================\n";
 		// now forget all of the pinned pages we were remembering
 		vector<MyDB_PageHandle> temp2;
 		myHandles = temp2;
