@@ -18,67 +18,20 @@ class MyDB_Page
 
 public:
   // access the raw bytes in this page
-  void *getBytes(MyDB_PagePtr self)
-  {
-    this->manager->retrivePage(self);
-    return this->bytes;
-  }
+  void *getBytes(MyDB_PagePtr self);
 
   // let the page know that we have written to the bytes
-  void setDirty()
-  {
-    this->dirty = true;
-  }
+  void setDirty();
 
-  // free the memory
   ~MyDB_Page();
 
-  MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned)
-      : bytes(nullptr), doNotKill(false), dirty(false), pinned(pinned), manager(manager), table(table), pageIndex(pageIndex), ref(0), remaining(0) {}
-
-  // sets the bytes in the page
-  void setBytes(void *bytes, size_t numBytes);
+  MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned);
 
   // decrements the ref count
-  void removeRef(MyDB_PagePtr self)
-  {
-    this->ref--;
-    if (ref == 0)
-    {
-      // no longer pinned
-      this->pinned = false;
-
-      if (this->table == nullptr)
-      // anonymous page shall be destroyed when no reference
-      {
-        // do we need to store the page into anonfile?
-        if (this->bytes != nullptr)
-        // free the memeory
-        {
-          this->manager->ram.push_back(this->bytes);
-        }
-
-        // mark it self as useless
-        this->bytes = nullptr;
-        this->dirty = false;
-
-        // remove it from clock, no matter pinned or not
-        // for (size_t i = 0; i < this->manager->clock.size(); i++)
-        // {
-        //   if (this->manager->clock.at(i) == self)
-        //   {
-        //     this->manager->clock.at(i) = nullptr;
-        //   }
-        // }
-      }
-    }
-  }
+  void removeRef(MyDB_PagePtr self);
 
   // increments the ref count
-  void addRef()
-  {
-    this->ref++;
-  }
+  void addRef();
 
 private:
   friend class MyDB_BufferManager;

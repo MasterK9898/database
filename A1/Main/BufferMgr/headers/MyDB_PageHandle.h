@@ -4,13 +4,12 @@
 
 #include <memory>
 #include <string>
-// #include "MyDB_Page.h"
+#include "MyDB_Page.h"
 #include "MyDB_Table.h"
 
 // page handles are basically smart pointers
 using namespace std;
 class MyDB_PageHandleBase;
-class MyDB_Page;
 
 typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
 typedef shared_ptr<MyDB_PageHandleBase> MyDB_PageHandle;
