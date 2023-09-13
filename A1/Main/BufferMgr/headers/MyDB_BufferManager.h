@@ -17,6 +17,8 @@
 using namespace std;
 
 class MyDB_BufferManager;
+class MyDB_PageHandleBase;
+
 typedef shared_ptr<MyDB_BufferManager> MyDB_BufferManagerPtr;
 // A hash function used to hash the pair
 struct hashPair
@@ -74,6 +76,7 @@ public:
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
 private:
+	friend class MyDB_PageHandleBase;
 	friend class MyDB_Page;
 	// YOUR STUFF HERE
 

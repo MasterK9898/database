@@ -10,6 +10,7 @@
 using namespace std;
 class MyDB_Page;
 class MyDB_BufferManager;
+class MyDB_PageHandleBase;
 
 typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
 // a page object that stores the meat
@@ -17,12 +18,6 @@ class MyDB_Page
 {
 
 public:
-  // access the raw bytes in this page
-  void *getBytes(MyDB_PagePtr self);
-
-  // let the page know that we have written to the bytes
-  void setDirty();
-
   ~MyDB_Page();
 
   MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned);
@@ -35,6 +30,7 @@ public:
 
 private:
   friend class MyDB_BufferManager;
+  friend class MyDB_PageHandleBase;
   // the meat
   void *bytes;
 

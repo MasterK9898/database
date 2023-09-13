@@ -234,17 +234,6 @@ MyDB_PageHandle MyDB_BufferManager::getAnonPage(bool pinned)
   return make_shared<MyDB_PageHandleBase>(anonPage);
 }
 
-void *MyDB_Page::getBytes(MyDB_PagePtr self)
-{
-  this->manager->retrivePage(self);
-  return this->bytes;
-}
-
-void MyDB_Page::setDirty()
-{
-  this->dirty = true;
-}
-
 MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned)
     : bytes(nullptr), doNotKill(false), dirty(false), pinned(pinned), manager(manager), table(table), pageIndex(pageIndex), ref(0) {}
 

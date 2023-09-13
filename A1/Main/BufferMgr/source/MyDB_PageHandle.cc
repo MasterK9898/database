@@ -4,15 +4,32 @@
 
 #include <memory>
 #include "MyDB_PageHandle.h"
+#include "MyDB_BufferManager.h"
 
-// void *MyDB_PageHandleBase :: getBytes () {
-// 	return nullptr;
-// }
+void *MyDB_PageHandleBase ::getBytes()
+{
+  this->page->manager->retrivePage(this->page);
+  return this->page->bytes;
+}
 
-// void MyDB_PageHandleBase :: wroteBytes () {
-// }
+void MyDB_PageHandleBase ::wroteBytes()
+{
+  this->page->dirty = true;
+}
 
-// MyDB_PageHandleBase :: ~MyDB_PageHandleBase () {
-// }
+MyDB_PageHandleBase ::~MyDB_PageHandleBase()
+{
+  this->page->removeRef();
+}
+
+MyDB_PageHandleBase ::MyDB_PageHandleBase(MyDB_PagePtr page) : page(page)
+{
+  this->page->addRef();
+}
+
+MyDB_PagePtr MyDB_PageHandleBase ::getPage()
+{
+  return this->page;
+}
 
 #endif
