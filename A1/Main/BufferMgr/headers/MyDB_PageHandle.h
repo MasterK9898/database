@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 #include "MyDB_Page.h"
 #include "MyDB_Table.h"
 
@@ -44,6 +45,7 @@ public:
 	// become unpinned.
 	~MyDB_PageHandleBase()
 	{
+		std::cout << "handle killed" << std::endl;
 		this->page->removeRef(page);
 	}
 

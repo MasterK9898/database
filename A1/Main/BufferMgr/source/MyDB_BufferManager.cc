@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>
+#include <iostream>
 #include "MyDB_Page.h"
 #include "MyDB_PageHandle.h"
 #include "MyDB_Table.h"
@@ -121,6 +122,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
     lseek(fd, page->pageIndex * this->pageSize, SEEK_SET);
     read(fd, page->bytes, this->pageSize);
 
+    // update
     this->clock.at(this->clockHand) = page;
   }
 
@@ -134,44 +136,47 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
 // free the meory and points clock hand to this unit
 void MyDB_BufferManager::evict()
 {
+  bool outOfRam = ram.size() == 0;
   while (true)
   {
     auto currentPage = this->clock.at(this->clockHand);
-    if (currentPage == nullptr)
+
+    if (currentPage == nullptr || currentPage->bytes == nullptr)
     // this block is not initialized, good
     // nullptr means there's still place left on ram
     {
       return;
     }
-    if (currentPage->doNotKill)
-    // second chance given
+    if (outOfRam)
+    // only when out of ram need to consider evciting
     {
-      currentPage->doNotKill = false;
-    }
-    else if (!currentPage->pinned)
-    // preserve pinned page, else say goodbye
-    {
-      if (currentPage->bytes == nullptr)
-      // this page self destructed for some reason
-      // probably a enon page
+      if (currentPage->doNotKill)
+      // second chance given
       {
+        currentPage->doNotKill = false;
+      }
+      else if (!currentPage->pinned)
+      // preserve pinned page, else say goodbye
+      {
+        if (currentPage->dirty)
+        // dirty page write back
+        {
+          int fd = this->fileTable[currentPage->table];
+          lseek(fd, currentPage->pageIndex * pageSize, SEEK_SET);
+          write(fd, currentPage->bytes, pageSize);
+          currentPage->dirty = false;
+        }
+        // needs to clear?
+        ram.push_back(currentPage->bytes);
+        currentPage->bytes = nullptr;
+        // say goodbye
+        this->clock.at(this->clockHand) = nullptr;
+        // the page itself could still be kept, for future use
+        // but it's memory is gone, and need to read again from disk
         return;
       }
-      if (currentPage->dirty)
-      // dirty page write back
-      {
-        int fd = this->fileTable[currentPage->table];
-        lseek(fd, currentPage->pageIndex * pageSize, SEEK_SET);
-        write(fd, currentPage->bytes, pageSize);
-        currentPage->dirty = false;
-      }
-      // needs to clear?
-      ram.push_back(currentPage->bytes);
-      currentPage->bytes = nullptr;
-      // the page itself could still be kept, for future use
-      // but it's memory is gone, and need to read again from disk
-      return;
     }
+
     this->rotate();
     if (this->clockHand == 0)
     // a new round means the clock is full
@@ -244,7 +249,20 @@ void MyDB_Page::removeRef(MyDB_PagePtr self)
     if (this->table == nullptr)
     // anonymous page shall be destroyed when no reference
     {
-      // it will be evicted anyway
+      std::cout << "slef destruction " << (void *)this << std::endl;
+      for (size_t i = 0; i < this->manager->clock.size(); i++)
+      {
+        auto current = this->manager->clock.at(i);
+        if (current != nullptr && current.get() == this)
+        {
+          std::cout << "evict position " << i << std::endl;
+          this->manager->clock.at(i) = nullptr;
+          std::cout << (void *)this->manager->clock.at(i).get() << std::endl;
+        }
+      }
+      // give back the memory
+      this->manager->ram.push_back(this->bytes);
+      this->bytes = nullptr;
       this->doNotKill = false;
     }
   }
