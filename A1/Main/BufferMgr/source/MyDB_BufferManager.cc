@@ -136,6 +136,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
 // free the meory and points clock hand to this unit
 void MyDB_BufferManager::evict()
 {
+  // if there is still ram, then it is better to evict the useless page
   bool outOfRam = ram.size() == 0;
   while (true)
   {
@@ -236,9 +237,17 @@ void MyDB_Page::setDirty()
 MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned)
     : bytes(nullptr), doNotKill(false), dirty(false), pinned(pinned), manager(manager), table(table), pageIndex(pageIndex), ref(0) {}
 
-MyDB_Page::~MyDB_Page() {}
+MyDB_Page::~MyDB_Page()
+{
+  // give back the memory when it is killed
+  if (this->bytes != nullptr)
+  {
+    this->manager->ram.push_back(this->bytes);
+    this->bytes = nullptr;
+  }
+}
 
-void MyDB_Page::removeRef(MyDB_PagePtr self)
+void MyDB_Page::removeRef()
 {
   this->ref--;
   if (ref == 0)
@@ -249,20 +258,12 @@ void MyDB_Page::removeRef(MyDB_PagePtr self)
     if (this->table == nullptr)
     // anonymous page shall be destroyed when no reference
     {
-      std::cout << "slef destruction " << (void *)this << std::endl;
-      for (size_t i = 0; i < this->manager->clock.size(); i++)
+      if (this->bytes != nullptr)
+      // give back the memory, if there is any
       {
-        auto current = this->manager->clock.at(i);
-        if (current != nullptr && current.get() == this)
-        {
-          std::cout << "evict position " << i << std::endl;
-          this->manager->clock.at(i) = nullptr;
-          std::cout << (void *)this->manager->clock.at(i).get() << std::endl;
-        }
+        this->manager->ram.push_back(this->bytes);
+        this->bytes = nullptr;
       }
-      // give back the memory
-      this->manager->ram.push_back(this->bytes);
-      this->bytes = nullptr;
       this->doNotKill = false;
     }
   }
@@ -274,5 +275,3 @@ void MyDB_Page::addRef()
 }
 
 #endif
-
-// clock and ram can be combined into one

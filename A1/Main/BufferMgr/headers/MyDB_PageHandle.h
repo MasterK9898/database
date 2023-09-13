@@ -45,8 +45,7 @@ public:
 	// become unpinned.
 	~MyDB_PageHandleBase()
 	{
-		std::cout << "handle killed" << std::endl;
-		this->page->removeRef(page);
+		this->page->removeRef();
 	}
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS

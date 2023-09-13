@@ -28,7 +28,7 @@ public:
   MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned);
 
   // decrements the ref count
-  void removeRef(MyDB_PagePtr self);
+  void removeRef();
 
   // increments the ref count
   void addRef();

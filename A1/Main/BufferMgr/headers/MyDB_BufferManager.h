@@ -76,6 +76,8 @@ public:
 private:
 	friend class MyDB_Page;
 	// YOUR STUFF HERE
+
+	// actually ram space
 	vector<void *> ram;
 
 	// IMPLEMENTING CLOCK

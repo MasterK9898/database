@@ -16,9 +16,6 @@ private:
 
 public:
 	Node(Data data, Node<Data> *nxt = nullptr) : holdMe(data), next(nxt) {}
-	// {
-	// 	std::cout << "Node created with value: " << holdMe << std::endl;
-	// }
 
 	Data getData()
 	{
