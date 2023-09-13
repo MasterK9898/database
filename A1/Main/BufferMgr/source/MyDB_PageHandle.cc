@@ -27,9 +27,9 @@ MyDB_PageHandleBase ::MyDB_PageHandleBase(MyDB_PagePtr page) : page(page)
   this->page->addRef();
 }
 
-MyDB_PagePtr MyDB_PageHandleBase ::getPage()
+void MyDB_PageHandleBase::unPin()
 {
-  return this->page;
+  this->page->pinned = false;
 }
 
 #endif

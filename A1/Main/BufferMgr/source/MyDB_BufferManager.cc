@@ -41,7 +41,7 @@ MyDB_PageHandle MyDB_BufferManager ::getPinnedPage()
 
 void MyDB_BufferManager ::unpin(MyDB_PageHandle unpinMe)
 {
-  unpinMe->getPage()->pinned = false;
+  unpinMe->unPin();
 }
 
 MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)

@@ -44,8 +44,8 @@ public:
 	// init the page handle
 	MyDB_PageHandleBase(MyDB_PagePtr page);
 
-	// return the current page
-	MyDB_PagePtr getPage();
+	// unpin a apge
+	void unPin();
 
 private:
 	// YOUR CODE HERE
