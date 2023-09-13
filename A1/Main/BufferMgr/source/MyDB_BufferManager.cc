@@ -109,7 +109,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
     // something is going wrong
     if (ram.size() == 0)
     {
-      throw new runtime_error("out of memory");
+      throw std::runtime_error("out of memory");
     }
     // it's quite silly that there's no pop only pop back...
     // so the best idea is to use the last one
@@ -244,25 +244,8 @@ void MyDB_Page::removeRef(MyDB_PagePtr self)
     if (this->table == nullptr)
     // anonymous page shall be destroyed when no reference
     {
-      // do we need to store the page into anonfile?
-      if (this->bytes != nullptr)
-      // free the memeory
-      {
-        this->manager->ram.push_back(this->bytes);
-      }
-
-      // mark it self as useless
-      this->bytes = nullptr;
-      this->dirty = false;
-
-      // remove it from clock, no matter pinned or not
-      // for (size_t i = 0; i < this->manager->clock.size(); i++)
-      // {
-      //   if (this->manager->clock.at(i) == self)
-      //   {
-      //     this->manager->clock.at(i) = nullptr;
-      //   }
-      // }
+      // it will be evicted anyway
+      this->doNotKill = false;
     }
   }
 }
@@ -273,3 +256,5 @@ void MyDB_Page::addRef()
 }
 
 #endif
+
+// clock and ram can be combined into one
