@@ -198,6 +198,12 @@ void MyDB_BufferManager::evict()
   }
 }
 
+void MyDB_BufferManager::rotate()
+{
+  this->clockHand++;
+  this->clockHand %= this->numPages;
+}
+
 MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
 {
   // open the file
@@ -239,12 +245,7 @@ MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *
 
 MyDB_Page::~MyDB_Page()
 {
-  // give back the memory when it is killed
-  if (this->bytes != nullptr)
-  {
-    this->manager->ram.push_back(this->bytes);
-    this->bytes = nullptr;
-  }
+  this->selfEvict();
 }
 
 void MyDB_Page::removeRef()
@@ -258,13 +259,7 @@ void MyDB_Page::removeRef()
     if (this->table == nullptr)
     // anonymous page shall be destroyed when no reference
     {
-      if (this->bytes != nullptr)
-      // give back the memory, if there is any
-      {
-        this->manager->ram.push_back(this->bytes);
-        this->bytes = nullptr;
-      }
-      this->doNotKill = false;
+      this->selfEvict();
     }
   }
 }
@@ -272,6 +267,17 @@ void MyDB_Page::removeRef()
 void MyDB_Page::addRef()
 {
   this->ref++;
+}
+
+void MyDB_Page::selfEvict()
+{
+  if (this->bytes != nullptr)
+  // give back the memory, if there is any
+  {
+    this->manager->ram.push_back(this->bytes);
+    this->bytes = nullptr;
+  }
+  this->doNotKill = false;
 }
 
 #endif

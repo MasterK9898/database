@@ -80,48 +80,42 @@ private:
 	friend class MyDB_Page;
 	// YOUR STUFF HERE
 
-	// actually ram space
+	// actual ram space
 	vector<void *> ram;
-
-	// IMPLEMENTING CLOCK
 
 	// wheather the clock is fiiled up (to determine the init reference value)
 	bool initialized;
+
 	// clock "face"
 	vector<MyDB_PagePtr> clock;
+
 	// current position of the clock hand
 	size_t clockHand;
+
 	// size of page
 	size_t pageSize;
+
 	// number of pages
 	size_t numPages;
 
-	// IMPLEMENTING PAGE TABLE
-
-	// the page table
-	// table points to the position on clock
+	// the page table, from table and index to the page
 	std::unordered_map<pair<MyDB_TablePtr, size_t>, MyDB_PagePtr, hashPair> pageTable;
-
-	// FOR ANONYMOUS FILES
 
 	// keep the file for anonymous pages
 	string tempFile;
-	// keep track of the index
+
+	// keep track of the anonymous page index
 	size_t tempIndex;
 
 	// maintain a file table for faster performance
 	std::unordered_map<MyDB_TablePtr, int> fileTable;
 
 	// say goodbye to somebody on clock
-	// free the meory and points clock hand to this unit
+	// free the memory and points clock hand to this unit
 	void evict();
 
 	// rotate the clock hand
-	void rotate()
-	{
-		this->clockHand++;
-		this->clockHand %= this->numPages;
-	}
+	void rotate();
 
 	// get the page read on ram
 	void retrivePage(MyDB_PagePtr page);

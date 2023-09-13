@@ -55,10 +55,8 @@ private:
   // the number of references
   int ref;
 
-  // remaining bytes
-  // size_t remaining;
-  // last modifed
-  // size_t timeStamp;
+  // kill oneself
+  void selfEvict();
 };
 
 #endif
