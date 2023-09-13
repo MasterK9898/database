@@ -114,7 +114,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
     }
     // it's quite silly that there's no pop only pop back...
     // so the best idea is to use the last one
-    page->bytes = this->ram[this->ram.size() - 1];
+    page->bytes = this->ram.back();
     this->ram.pop_back();
 
     // read from file
@@ -137,7 +137,9 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
 void MyDB_BufferManager::evict()
 {
   // if there is still ram, then it is better to evict the useless page
-  bool outOfRam = ram.size() == 0;
+  bool outOfRam = this->ram.size() == 0;
+
+  size_t pinnedCount = 0;
   while (true)
   {
     auto currentPage = this->clock.at(this->clockHand);
@@ -156,8 +158,17 @@ void MyDB_BufferManager::evict()
       {
         currentPage->doNotKill = false;
       }
-      else if (!currentPage->pinned)
-      // preserve pinned page, else say goodbye
+      else if (currentPage->pinned)
+      // preserve pinned page
+      {
+        pinnedCount++;
+        if (pinnedCount == this->numPages)
+        {
+          throw std::runtime_error("dude, all the pages are pinned");
+        }
+      }
+      else
+      // say goodbye
       {
         if (currentPage->dirty)
         // dirty page write back
