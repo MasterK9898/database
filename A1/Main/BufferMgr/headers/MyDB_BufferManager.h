@@ -111,11 +111,8 @@ private:
 	std::unordered_map<MyDB_TablePtr, int> fileTable;
 
 	// say goodbye to somebody on clock
-	// free the memory and points clock hand to this unit
-	void evict();
-
-	// rotate the clock hand
-	void rotate();
+	// free the memory and return points clock hand to this unit
+	size_t evict();
 
 	// get the page read on ram
 	void retrivePage(MyDB_PagePtr page);

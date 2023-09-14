@@ -101,11 +101,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
   if (page->bytes == nullptr)
   // check the pointer to see if it is buffered
   {
-    // if there are empty ram space, arrange the space and put onto the clock
-
-    // else evict one page and suqeeze out the space
-    // evict any way
-    evict();
+    size_t evictIndex = evict();
 
     // something is going wrong
     if (ram.size() == 0)
@@ -123,32 +119,37 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
     read(fd, page->bytes, this->pageSize);
 
     // update
-    this->clock.at(this->clockHand) = page;
+    this->clock.at(evictIndex) = page;
   }
 
   // update the "do not kill bit" according to stage
   page->doNotKill = this->initialized;
-  // move the clockhand to the next position
-  this->rotate();
 }
 
 // say goodbye to somebody on clock
 // free the meory and points clock hand to this unit
-void MyDB_BufferManager::evict()
+size_t MyDB_BufferManager::evict()
 {
   // if there is still ram, then it is better to evict the useless page
   bool outOfRam = this->ram.size() == 0;
 
-  size_t pinnedCount = 0;
+  size_t count = 0;
   while (true)
   {
+
+    count++;
+    if (count > this->numPages * 2)
+    // even in the worst case, this will mean a infinite loop
+    {
+      throw std::runtime_error("dude, you got a infinite loop, are all the pages are pinned?");
+    }
     auto currentPage = this->clock.at(this->clockHand);
 
     if (currentPage == nullptr || currentPage->bytes == nullptr)
     // this block is not initialized, good
     // nullptr means there's still place left on ram
     {
-      return;
+      break;
     }
     if (outOfRam)
     // only when out of ram need to consider evciting
@@ -161,11 +162,6 @@ void MyDB_BufferManager::evict()
       else if (currentPage->pinned)
       // preserve pinned page
       {
-        pinnedCount++;
-        if (pinnedCount == this->numPages)
-        {
-          throw std::runtime_error("dude, all the pages are pinned");
-        }
       }
       else
       // say goodbye
@@ -185,23 +181,23 @@ void MyDB_BufferManager::evict()
         this->clock.at(this->clockHand) = nullptr;
         // the page itself could still be kept, for future use
         // but it's memory is gone, and need to read again from disk
-        return;
+        break;
       }
     }
 
-    this->rotate();
+    this->clockHand++;
+    this->clockHand %= this->numPages;
     if (this->clockHand == 0)
     // a new round means the clock is full
     {
       this->initialized = true;
     }
   }
-}
 
-void MyDB_BufferManager::rotate()
-{
+  size_t evictIndex = this->clockHand;
   this->clockHand++;
   this->clockHand %= this->numPages;
+  return evictIndex;
 }
 
 MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
