@@ -51,7 +51,7 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
     ram.push_back(malloc(pageSize));
     clock.push_back(nullptr);
   }
-  // open the file
+  // open the temp file
   int fd = open(tempFile.c_str(), O_CREAT | O_RDWR);
   this->fileTable[nullptr] = fd;
 }
@@ -134,11 +134,11 @@ size_t MyDB_BufferManager::evict()
   bool outOfRam = this->ram.size() == 0;
 
   size_t count = 0;
+
   while (true)
   {
 
-    count++;
-    if (count > this->numPages * 2)
+    if (count++ > this->numPages * 2)
     // even in the worst case, this will mean a infinite loop
     {
       throw std::runtime_error("dude, you got a infinite loop, are all the pages are pinned?");
@@ -148,20 +148,24 @@ size_t MyDB_BufferManager::evict()
     if (currentPage == nullptr || currentPage->bytes == nullptr)
     // this block is not initialized, good
     // nullptr means there's still place left on ram
+    // no bytes means self evicted
     {
       break;
     }
     if (outOfRam)
     // only when out of ram need to consider evciting
     {
-      if (currentPage->doNotKill)
-      // second chance given
+      if (!currentPage->pinned)
+      // preserve pinned page
       {
-        currentPage->doNotKill = false;
-      }
-      else if (!currentPage->pinned)
-      // preserve pinned page, else say goodbye
-      {
+
+        if (currentPage->doNotKill)
+        // second chance given
+        {
+          currentPage->doNotKill = false;
+          continue;
+        }
+        // say goodbye
         if (currentPage->dirty)
         // dirty page write back
         {
@@ -170,11 +174,9 @@ size_t MyDB_BufferManager::evict()
           write(fd, currentPage->bytes, pageSize);
           currentPage->dirty = false;
         }
-        // needs to clear?
+
         ram.push_back(currentPage->bytes);
         currentPage->bytes = nullptr;
-        // say goodbye
-        this->clock.at(this->clockHand) = nullptr;
         // the page itself could still be kept, for future use
         // but it's memory is gone, and need to read again from disk
         break;
@@ -183,6 +185,7 @@ size_t MyDB_BufferManager::evict()
 
     this->clockHand++;
     this->clockHand %= this->numPages;
+
     if (this->clockHand == 0)
     // a new round means the clock is full
     {
@@ -190,17 +193,23 @@ size_t MyDB_BufferManager::evict()
     }
   }
 
+  // return the current clock position
   size_t evictIndex = this->clockHand;
+  // next time, start from the next index
   this->clockHand++;
   this->clockHand %= this->numPages;
+
   return evictIndex;
 }
 
 MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
 {
-  // open the file
-  int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR, 0666);
-  this->fileTable[whichTable] = fd;
+  if (this->fileTable.count(whichTable) == 0)
+  // open the file if it's not
+  {
+    int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR, 0666);
+    this->fileTable[whichTable] = fd;
+  }
 
   // get the key
   pair<MyDB_TablePtr, long> key = make_pair(whichTable, i);
@@ -227,7 +236,7 @@ MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long
 
 MyDB_PageHandle MyDB_BufferManager::getAnonPage(bool pinned)
 {
-  // under radar, no record
+  // under radar, no record on table
   auto anonPage = make_shared<MyDB_Page>(nullptr, this->tempIndex++, this, pinned);
   return make_shared<MyDB_PageHandleBase>(anonPage);
 }
