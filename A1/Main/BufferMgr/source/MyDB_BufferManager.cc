@@ -159,12 +159,8 @@ size_t MyDB_BufferManager::evict()
       {
         currentPage->doNotKill = false;
       }
-      else if (currentPage->pinned)
-      // preserve pinned page
-      {
-      }
-      else
-      // say goodbye
+      else if (!currentPage->pinned)
+      // preserve pinned page, else say goodbye
       {
         if (currentPage->dirty)
         // dirty page write back
