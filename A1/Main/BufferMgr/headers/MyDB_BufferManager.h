@@ -80,8 +80,9 @@ private:
 	friend class MyDB_Page;
 	// YOUR STUFF HERE
 
-	// actual ram space
-	vector<void *> ram;
+	// use a whole chunck of space is cooler
+	// the idea is to map all the pages on the clock directly to the pointers by calculation
+	void *memory;
 
 	// wheather the clock is fiiled up (to determine the init reference value)
 	bool initialized;
@@ -116,6 +117,9 @@ private:
 
 	// get the page read on ram
 	void retrivePage(MyDB_PagePtr page);
+
+	// wrtie back page
+	void writeBackPage(MyDB_PagePtr page);
 
 	// unify the logic of getting normal page
 	MyDB_PageHandle getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned);

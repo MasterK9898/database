@@ -54,9 +54,6 @@ private:
 
   // the number of references
   int ref;
-
-  // kill oneself
-  void selfEvict();
 };
 
 #endif

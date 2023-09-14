@@ -48,9 +48,9 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
 {
   for (size_t i = 0; i < numPages; i++)
   {
-    ram.push_back(malloc(pageSize));
     clock.push_back(nullptr);
   }
+  this->memory = malloc(pageSize * numPages);
   // open the temp file
   int fd = open(tempFile.c_str(), O_CREAT | O_RDWR);
   this->fileTable[nullptr] = fd;
@@ -58,32 +58,16 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
 
 MyDB_BufferManager ::~MyDB_BufferManager()
 {
+  // write back all pages
   for (auto pair : this->pageTable)
   {
     auto currentPage = pair.second;
 
-    if (currentPage->bytes != nullptr)
-    {
-
-      if (currentPage->dirty)
-      // dirty page write back
-      {
-        int fd = this->fileTable[currentPage->table];
-        lseek(fd, currentPage->pageIndex * pageSize, SEEK_SET);
-        write(fd, currentPage->bytes, pageSize);
-        currentPage->dirty = false;
-      }
-      ram.push_back(currentPage->bytes);
-
-      currentPage->bytes = nullptr;
-    }
+    this->writeBackPage(currentPage);
   }
 
   // free all memory
-  for (auto ramUnit : this->ram)
-  {
-    free(ramUnit);
-  }
+  free(this->memory);
 
   // close all file
   for (auto pair : this->fileTable)
@@ -92,7 +76,7 @@ MyDB_BufferManager ::~MyDB_BufferManager()
     close(fd);
   }
 
-  // say goodbye the the file
+  // say goodbye the temp file
   remove(tempFile.c_str());
 }
 
@@ -103,15 +87,8 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
   {
     size_t evictIndex = evict();
 
-    // something is going wrong
-    if (ram.size() == 0)
-    {
-      throw std::runtime_error("out of memory");
-    }
-    // it's quite silly that there's no pop only pop back...
-    // so the best idea is to use the last one
-    page->bytes = this->ram.back();
-    this->ram.pop_back();
+    // calculate the byte position by offset
+    page->bytes = (void *)((char *)this->memory + evictIndex * this->pageSize);
 
     // read from file
     int fd = this->fileTable[page->table];
@@ -123,65 +100,68 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
   }
 
   // update the "do not kill bit" according to stage
-  page->doNotKill = this->initialized;
+  if (this->initialized)
+  {
+    page->doNotKill = true;
+  }
+}
+
+void MyDB_BufferManager::writeBackPage(MyDB_PagePtr page)
+{
+  // the page itself could still be kept, for future use
+  // but it's memory is gone, and need to read again from disk
+  if (page->bytes != nullptr)
+  // nothing todo if the page has no bytes at all
+  {
+    if (page->dirty)
+    // dirty page write back
+    {
+      int fd = this->fileTable[page->table];
+      lseek(fd, page->pageIndex * pageSize, SEEK_SET);
+      write(fd, page->bytes, pageSize);
+      page->dirty = false;
+    }
+    page->bytes = nullptr;
+  }
 }
 
 // say goodbye to somebody on clock
 // free the meory and points clock hand to this unit
+// the idea of clock hand is not visible to the out side, a layer of encapsulation
+// no matter whether there's a "hole" in the clock ,the clock only turns to the next position
 size_t MyDB_BufferManager::evict()
 {
-  // if there is still ram, then it is better to evict the useless page
-  bool outOfRam = this->ram.size() == 0;
 
+  // track the total rounds, prevent infinite loop
   size_t count = 0;
 
   while (true)
   {
-
     if (count++ > this->numPages * 2)
     // even in the worst case, this will mean a infinite loop
     {
       throw std::runtime_error("dude, you got a infinite loop, are all the pages are pinned?");
     }
     auto currentPage = this->clock.at(this->clockHand);
-    if (!outOfRam)
-    // if there's still memory left, then the job is to find the "hole" on the clock
-    {
 
-      if (currentPage == nullptr || currentPage->bytes == nullptr)
-      // this block is not initialized, good
-      // nullptr means there's still place left on ram
-      // no bytes means self evicted
-      {
-        break;
-      }
+    if (currentPage == nullptr)
+    // this unit on clock is empty
+    // use it directly
+    {
+      break;
     }
-    else
-    // only when out of ram need to consider evciting
+    if (!currentPage->pinned)
+    // pinned pages are ignored
     {
-      if (!currentPage->pinned)
-      // pinned pages are ignored
+      if (currentPage->doNotKill)
+      // second chance given
       {
-        if (currentPage->doNotKill)
-        // second chance given
-        {
-          currentPage->doNotKill = false;
-          continue;
-        }
-        // say goodbye
-        if (currentPage->dirty)
-        // dirty page write back
-        {
-          int fd = this->fileTable[currentPage->table];
-          lseek(fd, currentPage->pageIndex * pageSize, SEEK_SET);
-          write(fd, currentPage->bytes, pageSize);
-          currentPage->dirty = false;
-        }
-
-        ram.push_back(currentPage->bytes);
-        currentPage->bytes = nullptr;
-        // the page itself could still be kept, for future use
-        // but it's memory is gone, and need to read again from disk
+        currentPage->doNotKill = false;
+      }
+      else
+      // no chance, say goodbye
+      {
+        this->writeBackPage(currentPage);
         break;
       }
     }
@@ -190,11 +170,12 @@ size_t MyDB_BufferManager::evict()
     this->clockHand %= this->numPages;
 
     if (this->clockHand == 0)
-    // a new round means the clock is full
+    // if the clock reaches 0 again, then the clock is full
     {
       this->initialized = true;
     }
   }
+  // at this stage, the target is figured out and dealt with
 
   // return the current clock position
   size_t evictIndex = this->clockHand;
@@ -249,7 +230,10 @@ MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *
 
 MyDB_Page::~MyDB_Page()
 {
-  this->selfEvict();
+  // no need to wrtie back at this stage
+  // because the clock has a pointer to the page
+  // and in order to destruct the clock will need to lose the page
+  // which means an evict happens, and at that time wrtie back already happened
 }
 
 void MyDB_Page::removeRef()
@@ -261,9 +245,13 @@ void MyDB_Page::removeRef()
     this->pinned = false;
 
     if (this->table == nullptr)
-    // anonymous page shall be destroyed when no reference
+    // anonymous page, leave them dying on the clock is enough
+    // they will be evicted eventually
+    // and because no one should access the anon page again
+    // there's no need to wrtie back in this situation
     {
-      this->selfEvict();
+      this->doNotKill = false;
+      this->bytes = nullptr;
     }
   }
 }
@@ -273,19 +261,4 @@ void MyDB_Page::addRef()
   this->ref++;
 }
 
-void MyDB_Page::selfEvict()
-{
-  if (this->bytes != nullptr)
-  // give back the memory, if there is any
-  {
-    this->manager->ram.push_back(this->bytes);
-    this->bytes = nullptr;
-  }
-  this->doNotKill = false;
-}
-
 #endif
-
-// TODO: combine the clock and the ram into one, to avoid mess
-// use one boolean to maintain if ram is full
-// or use another table to maintain the clock position and table
