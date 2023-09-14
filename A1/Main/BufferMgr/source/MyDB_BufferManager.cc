@@ -46,14 +46,12 @@ void MyDB_BufferManager ::unpin(MyDB_PageHandle unpinMe)
 
 MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
 {
-  for (size_t i = 0; i < numPages; i++)
-  {
-    clock.push_back(nullptr);
-  }
+  // init the clock
+  clock.resize(numPages, nullptr);
+  // create the memory
   this->memory = malloc(pageSize * numPages);
   // open the temp file
-  int fd = open(tempFile.c_str(), O_CREAT | O_RDWR);
-  this->fileTable[nullptr] = fd;
+  openFile(nullptr);
 }
 
 MyDB_BufferManager ::~MyDB_BufferManager()
@@ -91,7 +89,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
     page->bytes = (void *)((char *)this->memory + evictIndex * this->pageSize);
 
     // read from file
-    int fd = this->fileTable[page->table];
+    int fd = this->openFile(page->table);
     lseek(fd, page->pageIndex * this->pageSize, SEEK_SET);
     read(fd, page->bytes, this->pageSize);
 
@@ -116,12 +114,30 @@ void MyDB_BufferManager::writeBackPage(MyDB_PagePtr page)
     if (page->dirty)
     // dirty page write back
     {
-      int fd = this->fileTable[page->table];
+      int fd = this->openFile(page->table);
       lseek(fd, page->pageIndex * pageSize, SEEK_SET);
       write(fd, page->bytes, pageSize);
       page->dirty = false;
     }
     page->bytes = nullptr;
+  }
+}
+
+// encapsulats the file table away from the outside, proxy pattern
+int MyDB_BufferManager::openFile(MyDB_TablePtr whichTable)
+{
+  if (this->fileTable.count(whichTable) == 0)
+  // open the file and store it onto the table if it's not
+  {
+    // for null pointers (anon page case), use the global temp file name
+    string fileName = whichTable == nullptr ? this->tempFile : whichTable->getStorageLoc();
+    int fd = open(fileName.c_str(), O_CREAT | O_RDWR, 0666);
+    this->fileTable[whichTable] = fd;
+    return fd;
+  }
+  else
+  {
+    return this->fileTable[whichTable];
   }
 }
 
@@ -182,18 +198,12 @@ size_t MyDB_BufferManager::evict()
   // next time, start from the next index
   this->clockHand++;
   this->clockHand %= this->numPages;
-
   return evictIndex;
 }
 
 MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
 {
-  if (this->fileTable.count(whichTable) == 0)
-  // open the file if it's not
-  {
-    int fd = open(whichTable->getStorageLoc().c_str(), O_CREAT | O_RDWR, 0666);
-    this->fileTable[whichTable] = fd;
-  }
+  this->openFile(whichTable);
 
   // get the key
   pair<MyDB_TablePtr, long> key = make_pair(whichTable, i);

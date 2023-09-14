@@ -121,6 +121,9 @@ private:
 	// wrtie back page
 	void writeBackPage(MyDB_PagePtr page);
 
+	// open the file if it is not yet opened, return the fd
+	int openFile(MyDB_TablePtr table);
+
 	// unify the logic of getting normal page
 	MyDB_PageHandle getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned);
 
