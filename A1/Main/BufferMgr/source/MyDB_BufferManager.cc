@@ -240,10 +240,10 @@ MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *
 
 MyDB_Page::~MyDB_Page()
 {
-  // no need to wrtie back at this stage
+  // no need to write back at this stage
   // because the clock has a pointer to the page
   // and in order to destruct the clock will need to lose the page
-  // which means an evict happens, and at that time wrtie back already happened
+  // which means an evict happens, and at that time write back already happened
 }
 
 void MyDB_Page::removeRef()
