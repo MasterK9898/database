@@ -144,21 +144,24 @@ size_t MyDB_BufferManager::evict()
       throw std::runtime_error("dude, you got a infinite loop, are all the pages are pinned?");
     }
     auto currentPage = this->clock.at(this->clockHand);
-
-    if (currentPage == nullptr || currentPage->bytes == nullptr)
-    // this block is not initialized, good
-    // nullptr means there's still place left on ram
-    // no bytes means self evicted
+    if (!outOfRam)
+    // if there's still memory left, then the job is to find the "hole" on the clock
     {
-      break;
+
+      if (currentPage == nullptr || currentPage->bytes == nullptr)
+      // this block is not initialized, good
+      // nullptr means there's still place left on ram
+      // no bytes means self evicted
+      {
+        break;
+      }
     }
-    if (outOfRam)
+    else
     // only when out of ram need to consider evciting
     {
       if (!currentPage->pinned)
-      // preserve pinned page
+      // pinned pages are ignored
       {
-
         if (currentPage->doNotKill)
         // second chance given
         {
@@ -282,3 +285,7 @@ void MyDB_Page::selfEvict()
 }
 
 #endif
+
+// TODO: combine the clock and the ram into one, to avoid mess
+// use one boolean to maintain if ram is full
+// or use another table to maintain the clock position and table
