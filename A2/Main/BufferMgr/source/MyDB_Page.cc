@@ -45,4 +45,14 @@ void MyDB_Page::addRef()
   this->ref++;
 }
 
+void MyDB_Page::getTable()
+{
+  return this->table;
+}
+
+void MyDB_Page::getManager()
+{
+  return this->manager;
+}
+
 #endif

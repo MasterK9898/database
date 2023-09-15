@@ -3,15 +3,18 @@
 #define TABLE_RW_H
 
 #include <memory>
+#include <unordered_map>
 #include "MyDB_BufferManager.h"
 #include "MyDB_Record.h"
 #include "MyDB_RecordIterator.h"
 #include "MyDB_Table.h"
+#include "MyDB_PageReaderWriter.h"
 
 // create a smart pointer for the catalog
 using namespace std;
-class MyDB_PageReaderWriter;
+
 class MyDB_TableReaderWriter;
+
 typedef shared_ptr<MyDB_TableReaderWriter> MyDB_TableReaderWriterPtr;
 
 class MyDB_TableReaderWriter
@@ -49,6 +52,13 @@ public:
 
 private:
 	// ANYTHING YOU NEED HERE
+
+	// current table
+	MyDB_TablePtr table;
+	// current buffer manager
+	MyDB_BufferManagerPtr manager;
+	// table for each page reader writer
+	unordered_map<int, MyDB_PageReaderWriterPtr> pageTable;
 };
 
 #endif
