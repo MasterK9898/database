@@ -52,6 +52,12 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
   this->memory = malloc(pageSize * numPages);
   // open the temp file
   openFile(nullptr);
+
+  // if malloc failed, then the initialization failed
+  if (this->memory == nullptr)
+  {
+    throw std::runtime_error("Dude, there's not enough memory for buffering, maybe you shall buy a better machine?");
+  }
 }
 
 MyDB_BufferManager ::~MyDB_BufferManager()
@@ -156,7 +162,7 @@ size_t MyDB_BufferManager::evict()
     if (count++ > this->numPages * 2)
     // even in the worst case, this will mean a infinite loop
     {
-      throw std::runtime_error("dude, you got a infinite loop, are all the pages are pinned?");
+      throw std::runtime_error("Dude, you got a infinite loop, are all the pages pinned?");
     }
     auto currentPage = this->clock.at(this->clockHand);
 
