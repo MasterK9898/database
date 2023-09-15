@@ -75,6 +75,9 @@ public:
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
+	// get the page size
+	size_t getPageSize();
+
 private:
 	friend class MyDB_PageHandleBase;
 	friend class MyDB_Page;

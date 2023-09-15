@@ -44,6 +44,11 @@ void MyDB_BufferManager ::unpin(MyDB_PageHandle unpinMe)
   unpinMe->unPin();
 }
 
+size_t MyDB_BufferManager::getPageSize()
+{
+  return this->pageSize;
+}
+
 MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
 {
   // init the clock

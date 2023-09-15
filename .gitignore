@@ -3,6 +3,8 @@
 *.bin
 *.txt
 .sconsign.dblite
+.vscode
 A1/Build/*
 !A1/Build/SConstruct
-.vscode
+A2/Build/*
+!A2/Build/SConstruct
