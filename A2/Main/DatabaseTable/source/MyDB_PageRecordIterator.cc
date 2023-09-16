@@ -5,6 +5,8 @@
 #include "MyDB_PageReaderWriter.h"
 
 using namespace std;
+
+// professor's in class guide
 // void* pos = myPage->getByres() headerSize;
 // void* nextRec = myRec->fromBinary(pos);
 // int btytesConsumed = (char*)nextRec - (char*)pos;

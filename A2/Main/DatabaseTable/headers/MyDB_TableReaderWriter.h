@@ -60,9 +60,8 @@ private:
 	MyDB_BufferManagerPtr manager;
 	// the current last page that is operating on
 	MyDB_PageReaderWriterPtr lastPage;
-
-	// clear the target page and return it
-	MyDB_PageReaderWriterPtr getCleanPage(int i);
+	// get the target page's reader writer, clean if needed
+	MyDB_PageReaderWriterPtr getPageReaderWriter(int i, bool clean);
 };
 
 #endif

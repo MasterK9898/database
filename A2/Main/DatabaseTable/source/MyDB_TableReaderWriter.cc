@@ -16,12 +16,12 @@ MyDB_TableReaderWriter ::MyDB_TableReaderWriter(MyDB_TablePtr forMe, MyDB_Buffer
 	// initialize if not
 	{
 		table->setLastPage(0);
-		this->lastPage = this->getCleanPage(0);
+		this->lastPage = this->getPageReaderWriter(0, true);
 	}
 	else
+	// keep track of the current last page of the table
 	{
-		MyDB_PageHandle page = this->manager->getPage(this->table, forMe->lastPage());
-		this->lastPage = make_shared<MyDB_PageReaderWriter>(page);
+		this->lastPage = this->getPageReaderWriter(forMe->lastPage(), false);
 	}
 }
 
@@ -32,7 +32,7 @@ MyDB_PageReaderWriter MyDB_TableReaderWriter ::operator[](size_t i)
 	{
 		int newTableSize = this->table->lastPage() + 1;
 		this->table->setLastPage(newTableSize);
-		this->lastPage = this->getCleanPage(newTableSize);
+		this->lastPage = this->getPageReaderWriter(newTableSize, true);
 	}
 
 	MyDB_PageHandle page = this->manager->getPage(this->table, i);
@@ -58,7 +58,7 @@ void MyDB_TableReaderWriter ::append(MyDB_RecordPtr appendMe)
 	{
 		int newTableSize = this->table->lastPage() + 1;
 		this->table->setLastPage(newTableSize);
-		this->lastPage = this->getCleanPage(newTableSize);
+		this->lastPage = this->getPageReaderWriter(newTableSize, true);
 		this->lastPage->append(appendMe);
 	}
 }
@@ -68,7 +68,7 @@ void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 	// all current record are overwritten
 	// initialize
 	this->table->setLastPage(0);
-	this->lastPage = this->getCleanPage(0);
+	this->lastPage = this->getPageReaderWriter(0, true);
 
 	string line;
 	ifstream file(fromMe);
@@ -113,12 +113,15 @@ void MyDB_TableReaderWriter ::writeIntoTextFile(string toMe)
 	}
 }
 
-MyDB_PageReaderWriterPtr MyDB_TableReaderWriter::getCleanPage(int i)
+MyDB_PageReaderWriterPtr MyDB_TableReaderWriter::getPageReaderWriter(int i, bool clean)
 {
 	MyDB_PageHandle page = this->manager->getPage(this->table, i);
-	auto empty = make_shared<MyDB_PageReaderWriter>(page);
-	empty->clear();
-	return empty;
+	auto readerWriter = make_shared<MyDB_PageReaderWriter>(page);
+	if (clean)
+	{
+		readerWriter->clear();
+	}
+	return readerWriter;
 }
 
 #endif
