@@ -55,7 +55,7 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
   // create the memory
   this->memory = malloc(pageSize * numPages);
   // open the temp file
-  openFile(nullptr);
+  this->openFile(nullptr);
 
   // if malloc failed, then the initialization failed
   if (this->memory == nullptr)
