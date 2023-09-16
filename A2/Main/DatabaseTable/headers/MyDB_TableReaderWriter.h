@@ -58,8 +58,7 @@ private:
 	MyDB_TablePtr table;
 	// current buffer manager
 	MyDB_BufferManagerPtr manager;
-	// the current last page that is operating on
-	MyDB_PageReaderWriterPtr lastPage;
+
 	// get the target page's reader writer, clean if needed
 	MyDB_PageReaderWriterPtr getPageReaderWriter(int i, bool clean);
 };
