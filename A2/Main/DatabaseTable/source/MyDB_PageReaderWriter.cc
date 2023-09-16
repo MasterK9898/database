@@ -60,4 +60,8 @@ bool MyDB_PageReaderWriter ::append(MyDB_RecordPtr appendMe)
 	return true;
 }
 
+MyDB_PageReaderWriter::MyDB_PageReaderWriter(MyDB_PageHandle whichPage) : page(whichPage) {}
+
+MyDB_PageReaderWriter::~MyDB_PageReaderWriter() {}
+
 #endif

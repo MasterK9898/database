@@ -23,16 +23,21 @@ public:
   bool hasNext();
 
   // destructor and contructor
-  MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe){};
-  ~MyDB_TableRecordIterator(){};
+  MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe, MyDB_TableReaderWriter *tableReaderWriter);
+
+  ~MyDB_TableRecordIterator();
 
 private:
+  // current record in use
+  MyDB_RecordPtr rec;
   // current table
   MyDB_TablePtr table;
   // iterator of the current page
-  MyDB_PageRecordIteratorPtr pageIter;
-  // current record
-  MyDB_RecordPtr rec;
+  // page reader writer's interface cannot be changed
+  // so cannot use more specific type
+  MyDB_RecordIteratorPtr pageIter;
+  // reference to the table reader wrtier
+  MyDB_TableReaderWriter *tableReaderWriter;
   // current index of page
   int pageIndex;
 };

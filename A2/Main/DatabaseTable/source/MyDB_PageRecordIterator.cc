@@ -34,6 +34,7 @@ bool MyDB_PageRecordIterator::hasNext()
 }
 
 MyDB_PageRecordIterator::MyDB_PageRecordIterator(MyDB_PageHandle whichPage, MyDB_RecordPtr iterateIntoMe) : page(whichPage), rec(iterateIntoMe), numBytesUsed(0){};
+
 MyDB_PageRecordIterator::~MyDB_PageRecordIterator(){};
 
 #endif

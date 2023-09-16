@@ -61,7 +61,9 @@ public:
 	void setType(MyDB_PageType toMe);
 
 	// create the reader writer
-	MyDB_PageReaderWriter(MyDB_Page whichPage);
+	MyDB_PageReaderWriter(MyDB_PageHandle whichPage);
+
+	~MyDB_PageReaderWriter();
 
 private:
 	// ANYTHING ELSE YOU WANT HERE
