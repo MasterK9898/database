@@ -7,6 +7,8 @@
 #include "MyDB_PageRecordIterator.h"
 #include "MyDB_PageType.h"
 
+using namespace std;
+
 void MyDB_PageReaderWriter ::clear()
 {
 	PageMeta *pageHeader = castPageHeader(this->page);
@@ -40,10 +42,10 @@ bool MyDB_PageReaderWriter ::append(MyDB_RecordPtr appendMe)
 	PageMeta *pageHeader = castPageHeader(this->page);
 	size_t recSize = appendMe->getBinarySize();
 
-	// calculate the current sonsumption status
+	// calculate the current consumption status
 	size_t currentUsage = pageHeader->numBytesUsed + sizeof(PageMeta);
 
-	if (currentUsage + recSize > pageSize)
+	if ((currentUsage + recSize) > pageSize)
 	// not enough space left
 	{
 		return false;

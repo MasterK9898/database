@@ -6,6 +6,8 @@
 #include "MyDB_TableRecordIterator.h"
 #include "MyDB_TableReaderWriter.h"
 
+using namespace std;
+
 void MyDB_TableRecordIterator::getNext()
 {
   // shift the page iterator to the place first
@@ -27,7 +29,7 @@ bool MyDB_TableRecordIterator::hasNext()
     return false;
   }
 
-  pageIter = tableReaderWriter[++this->pageIndex].getIterator(this->rec);
+  pageIter = this->tableReaderWriter->operator[](++this->pageIndex).getIterator(this->rec);
 
   return this->hasNext();
 }
@@ -35,7 +37,7 @@ bool MyDB_TableRecordIterator::hasNext()
 MyDB_TableRecordIterator::MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe, MyDB_TableReaderWriter *tableReaderWriter)
     : rec(iterateIntoMe), table(whichTable), tableReaderWriter(tableReaderWriter), pageIndex(0)
 {
-  this->pageIter = tableReaderWriter[0].getIterator(iterateIntoMe);
+  this->pageIter = tableReaderWriter->operator[](0).getIterator(iterateIntoMe);
 }
 MyDB_TableRecordIterator::~MyDB_TableRecordIterator(){};
 

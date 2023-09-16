@@ -53,7 +53,7 @@ MyDB_PageReaderWriter MyDB_TableReaderWriter ::last()
 void MyDB_TableReaderWriter ::append(MyDB_RecordPtr appendMe)
 {
 	MyDB_PageHandle page = this->manager->getPage(this->table, this->table->lastPage());
-	if (this->lastPage->append(appendMe))
+	if (!this->lastPage->append(appendMe))
 	// if current insertion failed, insert a new page into the table
 	{
 		int newTableSize = this->table->lastPage() + 1;

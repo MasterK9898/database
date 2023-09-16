@@ -9,3 +9,4 @@ A1/Build/*
 !A1/Build/SConstruct
 A2/Build/*
 !A2/Build/SConstruct
+!A2/Build/SConstruct/supplier.tbl

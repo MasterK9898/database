@@ -4,6 +4,7 @@
 #include "MyDB_PageRecordIterator.h"
 #include "MyDB_PageReaderWriter.h"
 
+using namespace std;
 // void* pos = myPage->getByres() headerSize;
 // void* nextRec = myRec->fromBinary(pos);
 // int btytesConsumed = (char*)nextRec - (char*)pos;
