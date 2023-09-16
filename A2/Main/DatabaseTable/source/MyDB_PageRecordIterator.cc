@@ -23,8 +23,8 @@ void MyDB_PageRecordIterator::getNext()
   {
     PageMeta *pageHeader = castPageHeader(this->page);
     // do the pointer arrithmetic directly, no need to deref
-    char *pos = pageHeader->recs + this->numBytesUsed;
-    this->rec->fromBinary((void *)pos);
+    void *pos = (void *)(pageHeader->recs + this->numBytesUsed);
+    this->rec->fromBinary(pos);
     this->numBytesUsed += this->rec->getBinarySize();
   }
 }

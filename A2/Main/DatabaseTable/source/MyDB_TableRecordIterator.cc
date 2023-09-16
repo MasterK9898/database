@@ -39,13 +39,13 @@ MyDB_TableRecordIterator::MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyD
     : rec(iterateIntoMe), table(whichTable), tableReaderWriter(tableReaderWriter), pageIndex(0)
 {
   this->pageIter = this->getPageRecordIterator();
-};
+}
 
 MyDB_TableRecordIterator::~MyDB_TableRecordIterator(){};
 
 MyDB_RecordIteratorPtr MyDB_TableRecordIterator::getPageRecordIterator()
 {
   return tableReaderWriter->operator[](this->pageIndex).getIterator(this->rec);
-};
+}
 
 #endif
