@@ -29,7 +29,7 @@ bool MyDB_TableRecordIterator::hasNext()
     return false;
   }
 
-  pageIter = this->tableReaderWriter->operator[](++this->pageIndex).getIterator(this->rec);
+  this->pageIter = this->tableReaderWriter->operator[](++this->pageIndex).getIterator(this->rec);
 
   return this->hasNext();
 }
