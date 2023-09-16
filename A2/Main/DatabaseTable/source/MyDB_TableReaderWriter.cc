@@ -16,25 +16,19 @@ MyDB_TableReaderWriter ::MyDB_TableReaderWriter(MyDB_TablePtr forMe, MyDB_Buffer
 	// initialize if not
 	{
 		table->setLastPage(0);
-		this->lastPage = this->getPageReaderWriter(0, true);
-	}
-	else
-	// keep track of the current last page of the table
-	{
-		this->lastPage = this->getPageReaderWriter(forMe->lastPage(), false);
+		this->getPageReaderWriter(0, true);
 	}
 }
 
 MyDB_PageReaderWriter MyDB_TableReaderWriter ::operator[](size_t i)
 {
-	// if goes beyond then we need more space, and stretch
 	while (i > this->table->lastPage())
+	// if goes beyond then we need more space, and stretch
 	{
-		int newTableSize = this->table->lastPage() + 1;
-		this->table->setLastPage(newTableSize);
-		this->lastPage = this->getPageReaderWriter(newTableSize, true);
+		this->table->setLastPage(this->table->lastPage() + 1);
 	}
 
+	// it's not returning reference, so wo need to create a whole new object and return it
 	MyDB_PageHandle page = this->manager->getPage(this->table, i);
 	return MyDB_PageReaderWriter(page);
 }
@@ -46,29 +40,35 @@ MyDB_RecordPtr MyDB_TableReaderWriter ::getEmptyRecord()
 
 MyDB_PageReaderWriter MyDB_TableReaderWriter ::last()
 {
+	// it's not returning reference, so wo need to create a whole new object and return it
 	MyDB_PageHandle page = this->manager->getPage(this->table, this->table->lastPage());
 	return MyDB_PageReaderWriter(page);
 }
 
 void MyDB_TableReaderWriter ::append(MyDB_RecordPtr appendMe)
 {
-	MyDB_PageHandle page = this->manager->getPage(this->table, this->table->lastPage());
-	if (!this->lastPage->append(appendMe))
+	auto lastPage = this->getPageReaderWriter(this->table->lastPage(), false);
+
+	if (!lastPage->append(appendMe))
 	// if current insertion failed, insert a new page into the table
 	{
 		int newTableSize = this->table->lastPage() + 1;
 		this->table->setLastPage(newTableSize);
-		this->lastPage = this->getPageReaderWriter(newTableSize, true);
-		this->lastPage->append(appendMe);
+		// get a new clean page, and append it
+		lastPage = this->getPageReaderWriter(newTableSize, true);
+		if (!lastPage->append(appendMe))
+		// if failed, it's the creator's false, they allocate too tiny space for page
+		{
+			throw runtime_error("dude, insertion to new page failed, your page size is too small");
+		}
 	}
 }
 
 void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 {
-	// all current record are overwritten
-	// initialize
+	// all current record are overwritten = re initialize
 	this->table->setLastPage(0);
-	this->lastPage = this->getPageReaderWriter(0, true);
+	this->getPageReaderWriter(0, true);
 
 	string line;
 	ifstream file(fromMe);
@@ -82,10 +82,11 @@ void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 		}
 		file.close();
 	}
-	else
-	{
-		throw new std::runtime_error("dude, cannot open this file");
-	}
+	// throwing error at this time seems to be too harsh?
+	// else
+	// {
+	// 	throw new runtime_error("dude, cannot open this file");
+	// }
 }
 
 MyDB_RecordIteratorPtr MyDB_TableReaderWriter ::getIterator(MyDB_RecordPtr iterateIntoMe)
@@ -107,10 +108,11 @@ void MyDB_TableReaderWriter ::writeIntoTextFile(string toMe)
 		}
 		file.close();
 	}
-	else
-	{
-		throw new std::runtime_error("dude, cannot open this file");
-	}
+	// throwing error at this time seems to be too harsh?
+	// else
+	// {
+	// 	throw new runtime_error("dude, cannot open this file");
+	// }
 }
 
 MyDB_PageReaderWriterPtr MyDB_TableReaderWriter::getPageReaderWriter(int i, bool clean)
