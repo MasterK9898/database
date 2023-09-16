@@ -29,7 +29,8 @@ bool MyDB_TableRecordIterator::hasNext()
     return false;
   }
 
-  this->pageIter = this->tableReaderWriter->operator[](++this->pageIndex).getIterator(this->rec);
+  this->pageIndex++;
+  this->pageIter = this->getPageRecordIterator();
 
   return this->hasNext();
 }
@@ -37,8 +38,14 @@ bool MyDB_TableRecordIterator::hasNext()
 MyDB_TableRecordIterator::MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe, MyDB_TableReaderWriter *tableReaderWriter)
     : rec(iterateIntoMe), table(whichTable), tableReaderWriter(tableReaderWriter), pageIndex(0)
 {
-  this->pageIter = tableReaderWriter->operator[](0).getIterator(iterateIntoMe);
-}
+  this->pageIter = this->getPageRecordIterator();
+};
+
 MyDB_TableRecordIterator::~MyDB_TableRecordIterator(){};
+
+MyDB_RecordIteratorPtr MyDB_TableRecordIterator::getPageRecordIterator()
+{
+  return tableReaderWriter->operator[](this->pageIndex).getIterator(this->rec);
+};
 
 #endif
