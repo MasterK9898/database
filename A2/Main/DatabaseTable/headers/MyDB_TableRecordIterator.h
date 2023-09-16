@@ -41,10 +41,8 @@ private:
   // current index of page
   int pageIndex;
 
-  // get record iterator of the current page
-  // page reader writer's interface cannot be changed
-  // so cannot use more specific type
-  MyDB_RecordIteratorPtr getPageRecordIterator();
+  // get record iterator of the target page
+  MyDB_RecordIteratorPtr getPageRecordIterator(int index);
 };
 
 #endif
