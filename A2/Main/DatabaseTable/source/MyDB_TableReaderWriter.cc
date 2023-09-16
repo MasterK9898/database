@@ -18,6 +18,7 @@ MyDB_TableReaderWriter ::MyDB_TableReaderWriter(MyDB_TablePtr forMe, MyDB_Buffer
 		table->setLastPage(0);
 		this->getPageReaderWriter(0, true);
 	}
+	cout << forMe->lastPage() << endl;
 }
 
 MyDB_PageReaderWriter MyDB_TableReaderWriter ::operator[](size_t i)
@@ -66,6 +67,10 @@ void MyDB_TableReaderWriter ::append(MyDB_RecordPtr appendMe)
 
 void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 {
+	// all current record are overwritten = re initialize
+	this->table->setLastPage(0);
+	this->getPageReaderWriter(0, true);
+
 	string line;
 	ifstream file(fromMe);
 	if (file.is_open())
@@ -83,10 +88,6 @@ void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 	// {
 	// 	throw new runtime_error("dude, cannot open this file");
 	// }
-
-	// all current record are overwritten = re initialize
-	this->table->setLastPage(0);
-	this->getPageReaderWriter(0, true);
 }
 
 MyDB_RecordIteratorPtr MyDB_TableReaderWriter ::getIterator(MyDB_RecordPtr iterateIntoMe)
