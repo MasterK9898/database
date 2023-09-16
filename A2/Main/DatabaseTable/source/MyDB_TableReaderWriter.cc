@@ -20,7 +20,8 @@ MyDB_TableReaderWriter ::MyDB_TableReaderWriter(MyDB_TablePtr forMe, MyDB_Buffer
 	}
 	else
 	{
-		this->lastPage = make_shared<MyDB_PageReaderWriter>(forMe->lastPage());
+		MyDB_PageHandle page = this->manager->getPage(this->table, forMe->lastPage());
+		this->lastPage = make_shared<MyDB_PageReaderWriter>(page);
 	}
 }
 
@@ -89,7 +90,7 @@ void MyDB_TableReaderWriter ::loadFromTextFile(string fromMe)
 
 MyDB_RecordIteratorPtr MyDB_TableReaderWriter ::getIterator(MyDB_RecordPtr iterateIntoMe)
 {
-	return make_shared<MyDB_TableRecordIterator>(this->table, iterateIntoMe, *this);
+	return make_shared<MyDB_TableRecordIterator>(this->table, iterateIntoMe, this);
 }
 
 void MyDB_TableReaderWriter ::writeIntoTextFile(string toMe)

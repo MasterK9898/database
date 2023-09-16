@@ -33,7 +33,7 @@ bool MyDB_TableRecordIterator::hasNext()
 }
 
 MyDB_TableRecordIterator::MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe, MyDB_TableReaderWriter *tableReaderWriter)
-    : table(whichTable), rec(iterateIntoMe), pageIndex(0), tableReaderWriter(tableReaderWriter)
+    : rec(iterateIntoMe), table(whichTable), tableReaderWriter(tableReaderWriter), pageIndex(0)
 {
   this->pageIter = tableReaderWriter[0].getIterator(iterateIntoMe);
 }

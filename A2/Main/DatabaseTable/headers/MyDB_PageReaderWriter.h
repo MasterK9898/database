@@ -12,8 +12,6 @@ using namespace std;
 
 class MyDB_PageReaderWriter;
 
-typedef shared_ptr<MyDB_PageReaderWriter> MyDB_PageReaderWriterPtr;
-
 // the header part in page
 struct PageMeta
 {
@@ -27,7 +25,7 @@ struct PageMeta
 };
 
 // cast the pageheader out from the page
-PageMeta *castPageHeader(MyDB_PageHandle page)
+inline PageMeta *castPageHeader(MyDB_PageHandle page)
 {
 	return (PageMeta *)page->getBytes();
 };

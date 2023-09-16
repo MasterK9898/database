@@ -3,18 +3,20 @@
 #define TABLE_RW_H
 
 #include <memory>
+#include "MyDB_PageReaderWriter.h"
 #include "MyDB_BufferManager.h"
 #include "MyDB_Record.h"
 #include "MyDB_RecordIterator.h"
 #include "MyDB_Table.h"
-#include "MyDB_PageReaderWriter.h"
 
 // create a smart pointer for the catalog
 using namespace std;
 
 class MyDB_TableReaderWriter;
+class MyDB_PageReaderWriter;
 
 typedef shared_ptr<MyDB_TableReaderWriter> MyDB_TableReaderWriterPtr;
+typedef shared_ptr<MyDB_PageReaderWriter> MyDB_PageReaderWriterPtr;
 
 class MyDB_TableReaderWriter
 {
