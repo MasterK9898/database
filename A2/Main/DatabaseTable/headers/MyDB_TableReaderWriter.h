@@ -3,7 +3,6 @@
 #define TABLE_RW_H
 
 #include <memory>
-#include <unordered_map>
 #include "MyDB_BufferManager.h"
 #include "MyDB_Record.h"
 #include "MyDB_RecordIterator.h"
@@ -57,8 +56,11 @@ private:
 	MyDB_TablePtr table;
 	// current buffer manager
 	MyDB_BufferManagerPtr manager;
-	// table for each page reader writer
-	unordered_map<int, MyDB_PageReaderWriterPtr> pageTable;
+	// the current last page that is operating on
+	MyDB_PageReaderWriterPtr lastPage;
+
+	// clear the target page and return it
+	MyDB_PageReaderWriterPtr getCleanPage(int i);
 };
 
 #endif

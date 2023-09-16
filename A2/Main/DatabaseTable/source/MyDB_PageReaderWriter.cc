@@ -9,8 +9,8 @@
 
 void MyDB_PageReaderWriter ::clear()
 {
-	this->setType(MyDB_PageType::RegularPage);
 	PageMeta *pageHeader = castPageHeader(this->page);
+	pageHeader->type = MyDB_PageType::RegularPage;
 	pageHeader->numBytesUsed = 0;
 	this->page->wroteBytes();
 }
