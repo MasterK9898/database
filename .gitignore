@@ -2,6 +2,7 @@
 *.zip
 *.bin
 *.txt
+*.h.gch
 .sconsign.dblite
 .vscode
 A1/Build/*
