@@ -24,7 +24,7 @@ public:
   bool hasNext();
 
   // destructor and contructor
-  MyDB_PageRecordIterator(MyDB_PageHandle whichPage){};
+  MyDB_PageRecordIterator(MyDB_PageHandle whichPage, MyDB_RecordPtr whichRec){};
   ~MyDB_PageRecordIterator(){};
 
 private:
@@ -32,8 +32,9 @@ private:
   MyDB_PageHandle page;
   // current record
   MyDB_RecordPtr rec;
-  // index of current record
-  size_t recIndex;
+  // how far has this iterator reached?
+  // the logic is the same as the "numBytesUsed" in pageMeta
+  size_t numBytesUsed;
 };
 
 #endif

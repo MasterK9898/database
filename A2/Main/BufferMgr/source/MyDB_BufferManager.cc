@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <utility>
 #include <memory>
-#include <ctime>
 #include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>

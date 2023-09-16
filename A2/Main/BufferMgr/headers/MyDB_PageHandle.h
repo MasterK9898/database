@@ -47,6 +47,9 @@ public:
 	// unpin a apge
 	void unPin();
 
+	// get pageSize
+	size_t getPageSize();
+
 private:
 	// YOUR CODE HERE
 

@@ -32,4 +32,9 @@ void MyDB_PageHandleBase::unPin()
   this->page->pinned = false;
 }
 
+size_t MyDB_PageHandleBase::getPageSize()
+{
+  return this->page->manager->pageSize;
+}
+
 #endif

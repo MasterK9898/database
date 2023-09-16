@@ -17,14 +17,22 @@ typedef shared_ptr<MyDB_PageReaderWriter> MyDB_PageReaderWriterPtr;
 // the header part in page
 struct PageMeta
 {
-	// pointer to first unused byte
-	unsigned int offset;
-	// pointers to start of each record
-	unsigned int *positions;
+	// number of used bytes (excluding the header)
+	size_t numBytesUsed;
 	// type of the page
 	MyDB_PageType type;
-	// bitmap stating which records are invalid?
+	// points to the starting of the first record
+	// pageMeta->rec[0] = (char*)page->bytes + sizeof(PageMeta)
+	char recs[0];
 };
+
+// cast the pageheader out from the page
+PageMeta *castPageHeader(MyDB_PageHandle page)
+{
+	return (PageMeta *)page->getBytes();
+};
+
+// typedef PageMetaSize sizeof(PageMeta);
 
 class MyDB_PageReaderWriter
 {

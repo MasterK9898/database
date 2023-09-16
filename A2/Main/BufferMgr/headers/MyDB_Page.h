@@ -28,12 +28,6 @@ public:
   // increments the ref count
   void addRef();
 
-  // get the current page table
-  void getTable();
-
-  // get the current buffer manager
-  void getManager();
-
 private:
   friend class MyDB_BufferManager;
   friend class MyDB_PageHandleBase;

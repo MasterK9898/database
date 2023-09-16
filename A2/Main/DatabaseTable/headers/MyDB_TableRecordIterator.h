@@ -23,7 +23,7 @@ public:
   bool hasNext();
 
   // destructor and contructor
-  MyDB_TableRecordIterator(MyDB_TablePtr whichTable){};
+  MyDB_TableRecordIterator(MyDB_TablePtr whichTable, MyDB_RecordPtr iterateIntoMe){};
   ~MyDB_TableRecordIterator(){};
 
 private:
