@@ -5,8 +5,6 @@
 *.h.gch
 .sconsign.dblite
 .vscode
-A1/Build/*
-!A1/Build/SConstruct
-A2/Build/*
-!A2/Build/SConstruct
-!A2/Build/supplier.tbl
+**/Build/**
+!**/Build/**/SConstruct
+!**/Build/**/*.tbl
