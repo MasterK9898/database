@@ -1,9 +1,6 @@
 *.o
 *.zip
-*.bin
-*.txt
 *.h.gch
-.sconsign.dblite
 .vscode
 **/Build/**
 !**/Build/**/SConstruct
