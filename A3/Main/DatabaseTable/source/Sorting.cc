@@ -25,23 +25,15 @@ using namespace std;
 			3. if next rec is in next page, load next page in run
 */
 
-// get the comparator used by heap
-std::function<bool(MyDB_RecordIteratorAltPtr, MyDB_RecordIteratorAltPtr)> getComparator(MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, function<bool()> comparator)
+void unifiedMergeHelper(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, function<bool()> comparator, function<void(MyDB_RecordIteratorAltPtr)> inside)
 {
-	return [lhs, rhs, comparator](const MyDB_RecordIteratorAltPtr leftIter, const MyDB_RecordIteratorAltPtr rightIter)
+	auto comp = [lhs, rhs, comparator](const MyDB_RecordIteratorAltPtr leftIter, const MyDB_RecordIteratorAltPtr rightIter)
 	{
 		leftIter->getCurrent(lhs);
 		rightIter->getCurrent(rhs);
 		// by default priority queue is max heap, so we need to reverse the comparator
 		return !comparator();
 	};
-}
-
-// helper mathod init the prority queue
-priority_queue<MyDB_RecordIteratorAltPtr, std::__1::vector<MyDB_RecordIteratorAltPtr>, std::__1::function<bool(MyDB_RecordIteratorAltPtr, MyDB_RecordIteratorAltPtr)>> initPriorityQueue(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, function<bool()> comparator)
-{
-	// init the comparator by closure
-	auto comp = getComparator(lhs, rhs, comparator);
 
 	priority_queue<MyDB_RecordIteratorAltPtr, vector<MyDB_RecordIteratorAltPtr>, decltype(comp)>
 			priorityQueue(comp);
@@ -55,16 +47,6 @@ priority_queue<MyDB_RecordIteratorAltPtr, std::__1::vector<MyDB_RecordIteratorAl
 		}
 	}
 
-	return priorityQueue;
-}
-
-void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIteratorAltPtr> &mergeUs,
-									 function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
-{
-	auto priorityQueue = initPriorityQueue(mergeUs, lhs, rhs, comparator);
-
-	// use a helper to read and write
-	MyDB_RecordPtr helper = sortIntoMe.getEmptyRecord();
 	while (!priorityQueue.empty())
 	{
 		// we cannot do the get current and advance step inside the heap
@@ -75,8 +57,7 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 		priorityQueue.pop();
 
 		// read and write
-		iterator->getCurrent(helper);
-		sortIntoMe.append(helper);
+		inside(iterator);
 
 		if (iterator->advance())
 		{
@@ -85,24 +66,31 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 	}
 }
 
+void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIteratorAltPtr> &mergeUs,
+									 function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
+{
+	// use a helper to read and write
+	MyDB_RecordPtr helper = sortIntoMe.getEmptyRecord();
+
+	auto inside = [&sortIntoMe, helper](MyDB_RecordIteratorAltPtr iterator)
+	{
+		iterator->getCurrent(helper);
+		sortIntoMe.append(helper);
+	};
+
+	unifiedMergeHelper(mergeUs, lhs, rhs, comparator, inside);
+}
+
 // merge k list at a time
 vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector<MyDB_RecordIteratorAltPtr> &mergeUs, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, MyDB_RecordPtr helper)
 {
-	auto priorityQueue = initPriorityQueue(mergeUs, lhs, rhs, comparator);
-
-	// init the result first
+	// init the result
 	vector<MyDB_PageReaderWriter> result;
 	// init the reader writer
 	MyDB_PageReaderWriter current(*parent);
 
-	while (!priorityQueue.empty())
+	auto inside = [&current, &parent, &result, helper](MyDB_RecordIteratorAltPtr iterator)
 	{
-		// we cannot do the get current and advance step inside the heap
-		// because the sequence matters, we need to activate the comparison by insertion
-
-		auto iterator = priorityQueue.top();
-		priorityQueue.pop();
-
 		// read and write
 		iterator->getCurrent(helper);
 
@@ -117,13 +105,11 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector
 			// append the target, this time it must be successful
 			current.append(helper);
 		}
+	};
 
-		if (iterator->advance())
-		{
-			priorityQueue.push(iterator);
-		}
-	}
+	unifiedMergeHelper(mergeUs, lhs, rhs, comparator, inside);
 
+	// don't forget the current page
 	result.push_back(current);
 
 	return result;
