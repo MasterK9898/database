@@ -88,6 +88,7 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 	// 2.1, 2.2
 	for (MyDB_RecordIteratorAltPtr iterator : mergeUs)
 	{
+		// we cannot risk to put empty iteators in, the comparator will crash
 		if (iterator->advance())
 		{
 			priorityQueue.push(iterator);
@@ -99,6 +100,11 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 	MyDB_RecordPtr helper = sortIntoMe.getEmptyRecord();
 	while (!priorityQueue.empty())
 	{
+		// we cannot do the get current and advance step inside the heap
+		// because the sequence matters, we need to activate the comparison by insertion
+
+		// 2.3.1
+		// it's quite silly that the pot does not have a return value
 		auto iterator = priorityQueue.top();
 		priorityQueue.pop();
 
@@ -106,6 +112,7 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 		iterator->getCurrent(helper);
 		sortIntoMe.append(helper);
 
+		// 2.3.2
 		if (iterator->advance())
 		{
 			priorityQueue.push(iterator);
@@ -113,15 +120,17 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 	}
 }
 
+// actually I think that merge into list can be changed to merge k list, then we might not need the merge helper
 vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_RecordIteratorAltPtr leftIter,
 																						MyDB_RecordIteratorAltPtr rightIter, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
+	// it's just leetcode question merge 2 list
+
 	// init the result first
 	vector<MyDB_PageReaderWriter> result;
 	// init the reader writer
 	MyDB_PageReaderWriter current(*parent);
 
-	// then it's just leetcode question merge 2 list
 	// but it's quite annoying that there's no such thing for hasNext
 	// so we need extra care for how to get the next member
 	while (true)
@@ -169,7 +178,6 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_R
 void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &sortIntoMe,
 					function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
-
 	size_t numPages = sortMe.getNumPages();
 
 	// 1.1
