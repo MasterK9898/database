@@ -25,28 +25,6 @@ using namespace std;
 			3. if next rec is in next page, load next page in run
 */
 
-// a helper function to help appending even when current page is full
-// if full create a new page and then append
-void appendHelper(MyDB_PageReaderWriter *current, MyDB_RecordPtr target, vector<MyDB_PageReaderWriter> *result, MyDB_BufferManagerPtr parent)
-{
-	if (current->append(target))
-	{
-		// if we can append, then all good
-		return;
-	}
-	else
-	{
-		// if we cannot append, then we need to create a new page
-		result->push_back(*current);
-		// create a new page
-		MyDB_PageReaderWriter newPage(*parent);
-		// swap current page into new page
-		*current = newPage;
-		// append the target, this time it must be successful
-		current->append(target);
-	}
-}
-
 // leet code merge sort, because it need recursion, so it must be separated
 vector<MyDB_PageReaderWriter> mergeHelper(size_t start, size_t end, vector<MyDB_PageReaderWriter> *currentRun, MyDB_BufferManagerPtr parent, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
@@ -120,7 +98,31 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 	}
 }
 
+// a helper function to help appending even when current page is full
+// if full create a new page and then append
+void appendHelper(MyDB_PageReaderWriter *current, MyDB_RecordPtr target, vector<MyDB_PageReaderWriter> *result, MyDB_BufferManagerPtr parent)
+{
+	if (current->append(target))
+	{
+		// if we can append, then all good
+		return;
+	}
+	else
+	{
+		// if we cannot append, then we need to create a new page
+		result->push_back(*current);
+		// create a new page
+		MyDB_PageReaderWriter newPage(*parent);
+		// swap current page into new page
+		*current = newPage;
+		// append the target, this time it must be successful
+		current->append(target);
+	}
+}
+
 // actually I think that merge into list can be changed to merge k list, then we might not need the merge helper
+// So I implemented a merge k version below
+// this one is just writte for fun, not used in the other place
 vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_RecordIteratorAltPtr leftIter,
 																						MyDB_RecordIteratorAltPtr rightIter, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
@@ -175,19 +177,81 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_R
 	return result;
 }
 
+vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector<MyDB_RecordIteratorAltPtr> &mergeUs, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
+{
+	// it's just leetcode question merge k list
+
+	auto comp = [lhs, rhs, comparator](const MyDB_RecordIteratorAltPtr leftIter, const MyDB_RecordIteratorAltPtr rightIter)
+	{
+		leftIter->getCurrent(lhs);
+		rightIter->getCurrent(rhs);
+		// by default priority queue is max heap, so we need to reverse the comparator
+		return !comparator();
+	};
+
+	priority_queue<MyDB_RecordIteratorAltPtr, vector<MyDB_RecordIteratorAltPtr>, decltype(comp)> priorityQueue(comp);
+
+	// init the result first
+	vector<MyDB_PageReaderWriter> result;
+	// init the reader writer
+	MyDB_PageReaderWriter current(*parent);
+
+	for (MyDB_RecordIteratorAltPtr iterator : mergeUs)
+	{
+		// we cannot risk to put empty iteators in, the comparator will crash
+		if (iterator->advance())
+		{
+			priorityQueue.push(iterator);
+		}
+	}
+
+	while (!priorityQueue.empty())
+	{
+		// we cannot do the get current and advance step inside the heap
+		// because the sequence matters, we need to activate the comparison by insertion
+
+		auto iterator = priorityQueue.top();
+		priorityQueue.pop();
+
+		// read and write
+		iterator->getCurrent(lhs);
+
+		if (!current.append(lhs))
+		{
+			// if we cannot append, then we need to create a new page
+			result.push_back(current);
+			// create a new page
+			MyDB_PageReaderWriter newPage(*parent);
+			// swap current page into new page
+			current = newPage;
+			// append the target, this time it must be successful
+			current.append(lhs);
+		}
+
+		if (iterator->advance())
+		{
+			priorityQueue.push(iterator);
+		}
+	}
+
+	result.push_back(current);
+
+	return result;
+}
+
 void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &sortIntoMe,
 					function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
 	size_t numPages = sortMe.getNumPages();
 
 	// 1.1
-	vector<vector<MyDB_PageReaderWriter>> allRuns;
+	vector<vector<MyDB_RecordIteratorAltPtr>> allRuns;
 	for (size_t i = 0; i < numPages; i += runSize)
 	{
-		vector<MyDB_PageReaderWriter> currentRun;
+		vector<MyDB_RecordIteratorAltPtr> currentRun;
 		for (size_t j = i; j < i + runSize && j < numPages; j++)
 		{
-			currentRun.push_back(*(sortMe[j].sort(comparator, lhs, rhs)));
+			currentRun.push_back((sortMe[j].sort(comparator, lhs, rhs))->getIteratorAlt());
 		}
 		allRuns.push_back(currentRun);
 	}
@@ -197,7 +261,7 @@ void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &s
 
 	for (auto currentRun : allRuns)
 	{
-		auto sortedRun = mergeHelper(0, currentRun.size() - 1, &currentRun, sortMe.getBufferMgr(), comparator, lhs, rhs);
+		auto sortedRun = mergeIntoList(sortMe.getBufferMgr(), currentRun, comparator, lhs, rhs);
 		mergeUs.push_back(getIteratorAlt(sortedRun));
 	}
 
