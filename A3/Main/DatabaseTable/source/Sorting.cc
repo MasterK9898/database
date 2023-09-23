@@ -11,6 +11,20 @@
 
 using namespace std;
 
+/**
+ 1. sort phase, repeat until file processed
+		1. read in R pages of rec (R = number of buffer pages available)
+		2. sort all recs(usually with merge sort)
+		3. write R pages of sorted recs to disk-those R pages are a "run"
+	2. merge phase
+		1. have a current page for each run j init to first page
+		2. insert a pointer to a rec from each current page into priority queue
+		3. while not all runs processed
+			1. take smallest rec from Qi write to output
+			2. add next rec from smallest rec's into Q
+			3. if next rec is in next page, load next page in run
+*/
+
 // a helper function to help appending even when current page is full
 // if full create a new page and then append
 void appendHelper(MyDB_PageReaderWriter *current, MyDB_RecordPtr target, vector<MyDB_PageReaderWriter> *result, MyDB_BufferManagerPtr parent)
@@ -36,7 +50,7 @@ void appendHelper(MyDB_PageReaderWriter *current, MyDB_RecordPtr target, vector<
 // leet code merge sort, because it need recursion, so it must be separated
 vector<MyDB_PageReaderWriter> mergeHelper(size_t start, size_t end, vector<MyDB_PageReaderWriter> *currentRun, MyDB_BufferManagerPtr parent, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
-	if (start < end)
+	if (start > end)
 	{
 		return vector<MyDB_PageReaderWriter>();
 	}
@@ -71,7 +85,7 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 
 	priority_queue<MyDB_RecordIteratorAltPtr, vector<MyDB_RecordIteratorAltPtr>, decltype(comp)> priorityQueue(comp);
 
-	// first phase: push in the first element of each iterator
+	// 2.1, 2.2
 	for (MyDB_RecordIteratorAltPtr iterator : mergeUs)
 	{
 		if (iterator->advance())
@@ -80,7 +94,8 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 		}
 	}
 
-	// second phase: pop the top element and push the next element of the target iterator
+	// 2.3
+	// use a helper to read and write
 	MyDB_RecordPtr helper = sortIntoMe.getEmptyRecord();
 	while (!priorityQueue.empty())
 	{
@@ -106,9 +121,10 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_R
 	// init the reader writer
 	MyDB_PageReaderWriter current(*parent);
 
-	// then it's just leetcode question
-	// while both iterators have not reached the end
-	while (leftIter->advance() && rightIter->advance())
+	// then it's just leetcode question merge 2 list
+	// but it's quite annoying that there's no such thing for hasNext
+	// so we need extra care for how to get the next member
+	while (true)
 	{
 		// get the record
 		leftIter->getCurrent(lhs);
@@ -117,28 +133,35 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_R
 		if (comparator())
 		{
 			appendHelper(&current, lhs, &result, parent);
-			leftIter->advance();
+			if (!leftIter->advance())
+			{
+				appendHelper(&current, rhs, &result, parent);
+				while (rightIter->advance())
+				{
+					rightIter->getCurrent(rhs);
+					appendHelper(&current, rhs, &result, parent);
+				}
+				break;
+			}
 		}
 		else
 		{
 			appendHelper(&current, rhs, &result, parent);
-			rightIter->advance();
+			if (!rightIter->advance())
+			{
+				appendHelper(&current, lhs, &result, parent);
+				while (leftIter->advance())
+				{
+					leftIter->getCurrent(lhs);
+					appendHelper(&current, lhs, &result, parent);
+				}
+				break;
+			}
 		}
 	}
 
-	// append the rest of the left iterator
-	while (leftIter->advance())
-	{
-		leftIter->getCurrent(lhs);
-		appendHelper(&current, lhs, &result, parent);
-	}
-
-	// append the rest of the right iterator
-	while (rightIter->advance())
-	{
-		rightIter->getCurrent(rhs);
-		appendHelper(&current, rhs, &result, parent);
-	}
+	// remeber to put the last into the result
+	result.push_back(current);
 
 	return result;
 }
@@ -146,10 +169,10 @@ vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_R
 void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &sortIntoMe,
 					function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
-	size_t numPages = sortMe.getNumPages();
-	size_t counter = 0;
 
-	// step 1: push all the iterators into a vector
+	size_t numPages = sortMe.getNumPages();
+
+	// 1.1
 	vector<vector<MyDB_PageReaderWriter>> allRuns;
 	for (size_t i = 0; i < numPages; i += runSize)
 	{
@@ -161,7 +184,7 @@ void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &s
 		allRuns.push_back(currentRun);
 	}
 
-	// step 2: sort all runs
+	// 1.2
 	vector<MyDB_RecordIteratorAltPtr> mergeUs;
 
 	for (auto currentRun : allRuns)
