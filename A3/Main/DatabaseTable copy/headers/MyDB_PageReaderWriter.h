@@ -49,6 +49,9 @@ public:
 	// constructor for an anonymous page that can be pinned, if desired
 	MyDB_PageReaderWriter(bool pinned, MyDB_BufferManager &parent);
 
+	// create the reader writer
+	MyDB_PageReaderWriter(MyDB_PageHandle whichPage);
+
 	// empties out the contents of this page, so that it has no records in it
 	// the type of the page is set to MyDB_PageType :: RegularPage
 	void clear();
@@ -97,8 +100,8 @@ public:
 	void *getBytes();
 
 private:
-	// this is the page that we are messing with
-	MyDB_PageHandle myPage;
+	// the current page that is being read and write
+	MyDB_PageHandle page;
 
 	// this is our buffer manager
 	size_t pageSize;

@@ -3,8 +3,8 @@
 #define PAGE_RW_C
 
 #include <memory>
-#include "MyDB_PageReaderWriter.h"
-#include "MyDB_PageRecordIterator.h"
+#include "../headers/MyDB_PageReaderWriter.h"
+#include "../headers/MyDB_PageRecordIterator.h"
 #include "MyDB_PageType.h"
 
 using namespace std;
@@ -63,6 +63,23 @@ bool MyDB_PageReaderWriter ::append(MyDB_RecordPtr appendMe)
 }
 
 MyDB_PageReaderWriter::MyDB_PageReaderWriter(MyDB_PageHandle whichPage) : page(whichPage) {}
+
+// constructor for a page in the same file as the parent
+MyDB_PageReaderWriter::MyDB_PageReaderWriter(MyDB_TableReaderWriter &parent, int whichPage)
+{
+	// get the actual page
+	this->page = parent.getParent()->getPage(parent.getTable(), whichPage);
+	this->pageSize = parent.getParent()->getPageSize();
+}
+
+// constructor for a page that can be pinned, if desired
+MyDB_PageReaderWriter::MyDB_PageReaderWriter(bool pinned, MyDB_TableReaderWriter &parent, int whichPage) {}
+
+// constructor for an anonymous page
+MyDB_PageReaderWriter::MyDB_PageReaderWriter(MyDB_BufferManager &parent) {}
+
+// constructor for an anonymous page that can be pinned, if desired
+MyDB_PageReaderWriter::MyDB_PageReaderWriter(bool pinned, MyDB_BufferManager &parent) {}
 
 MyDB_PageReaderWriter::~MyDB_PageReaderWriter() {}
 

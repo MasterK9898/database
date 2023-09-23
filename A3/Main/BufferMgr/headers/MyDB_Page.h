@@ -1,102 +1,59 @@
 
-
-/****************************************************
-** COPYRIGHT 2016, Chris Jermaine, Rice University **
-**                                                 **
-** The MyDB Database System, COMP 530              **
-** Note that this file contains SOLUTION CODE for  **
-** A1.  You should not be looking at this file     **
-** unless you have completed A1!                   **
-****************************************************/
-
 #ifndef PAGE_H
 #define PAGE_H
 
 #include <memory>
+// #include "MyDB_BufferManager.h"
+// #include "MyDB_Page.h"
 #include "MyDB_Table.h"
-#include <string>
 
-// create a smart pointer for pages
 using namespace std;
 class MyDB_Page;
-typedef shared_ptr <MyDB_Page> MyDB_PagePtr;
-
-// forward deifnition to handle circular dependencies
 class MyDB_BufferManager;
+class MyDB_PageHandleBase;
 
-class MyDB_Page {
+typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
+// a page object that stores the meat
+class MyDB_Page
+{
 
 public:
+  ~MyDB_Page();
 
-	// access the raw bytes in this page
-	void *getBytes (MyDB_PagePtr me);
+  MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned);
 
-	// let the page know that we have written to the bytes
-	void wroteBytes ();
+  // decrements the ref count
+  void removeRef();
 
-	// there are no more references to this page when this is called...
-	// if the page owns any RAM, it should give it back to the parent
-	// buffer manager
-	~MyDB_Page ();
-
-	// sets up the page... takes as input the relation that the page is
-	// bound to (this should be a nullptr if this is a temp page) and
-	// the position of the page in the file
-	MyDB_Page (MyDB_TablePtr myTable, size_t i, MyDB_BufferManager &parent);
-
-	// sets the bytes in the page
-	void setBytes (void *bytes, size_t numBytes);
-
-	// decrements the ref count
-	inline void decRefCount (MyDB_PagePtr me) {
-		refCount--;
-		if (refCount == 0) {
-			killpage (me);
-		}
-	}
-
-	// increments the ref count
-	inline void incRefCount () {
-		refCount++;
-	}
-
-	// get the parent
-	MyDB_BufferManager& getParent ();
+  // increments the ref count
+  void addRef();
 
 private:
+  friend class MyDB_BufferManager;
+  friend class MyDB_PageHandleBase;
+  // the meat
+  void *bytes;
 
-	friend class MyDB_BufferManager;
-	friend class PageComp;
-	friend class CheckLRU;
+  // second chance
+  bool doNotKill;
 
-	// a pointer to the raw bytes
-	void *bytes;
+  // dirty or not
+  bool dirty;
 
-	// the number of raw bytes available
-	size_t numBytes;
+  // pinned?
+  bool pinned;
 
-	// tells us if this page needs to be written back
-	bool isDirty;	
+  // pointer to the parent buffer manager
+  MyDB_BufferManager *manager;
 
-	// pointer to the parent buffer manager
-	MyDB_BufferManager& parent;		
+  // reference to the table, could be nullptr for annonymous pages
+  MyDB_TablePtr table;
 
-	// this is the relation that the page belongs to; is a nullptr if
-	// this is a temp page that does not belong to any relation
-	MyDB_TablePtr myTable;
+  // this is the position of the page in the relation
+  size_t pageIndex;
 
-	// this is the position of the page in the relation
-	size_t pos;
-
-	// this is the last time that the page had been accessed
-	long timeTick;
-
-	// the number of references
-	int refCount;
-
-	// kill the page
-	void killpage (MyDB_PagePtr me);
+  // the number of references
+  int ref;
 };
 
 #endif
-
