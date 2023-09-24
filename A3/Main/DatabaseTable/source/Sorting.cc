@@ -2,31 +2,23 @@
 #ifndef SORT_C
 #define SORT_C
 
+#include <queue>
+#include <memory>
 #include "MyDB_PageReaderWriter.h"
 #include "MyDB_TableRecIterator.h"
 #include "MyDB_TableRecIteratorAlt.h"
 #include "MyDB_TableReaderWriter.h"
 #include "Sorting.h"
-#include <queue>
 
 using namespace std;
 
-/**
- 1. sort phase, repeat until file processed
-		1. read in R pages of rec (R = number of buffer pages available)
-		2. sort all recs(usually with merge sort)
-		3. write R pages of sorted recs to disk-those R pages are a "run"
-	2. merge phase
-		1. have a current page for each run j init to first page
-		2. insert a pointer to a rec from each current page into priority queue
-		3. while not all runs processed
-			1. take smallest rec from Qi write to output
-			2. add next rec from smallest rec's into Q
-			3. if next rec is in next page, load next page in run
-*/
-
+// most part of merge list and merge file are the same
+// so I created this template method that accepts a function to do the inside work
 void unifiedMergeHelper(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, function<bool()> comparator, function<void(MyDB_RecordIteratorAltPtr)> inside)
 {
+	// bascially it's the leetcode question merge k sorted list
+
+	// init the comparator
 	auto comp = [lhs, rhs, comparator](const MyDB_RecordIteratorAltPtr leftIter, const MyDB_RecordIteratorAltPtr rightIter)
 	{
 		leftIter->getCurrent(lhs);
@@ -34,7 +26,7 @@ void unifiedMergeHelper(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordP
 		// by default priority queue is max heap, so we need to reverse the comparator
 		return !comparator();
 	};
-
+	// init the priority queue
 	priority_queue<MyDB_RecordIteratorAltPtr, vector<MyDB_RecordIteratorAltPtr>, decltype(comp)>
 			priorityQueue(comp);
 
@@ -56,9 +48,10 @@ void unifiedMergeHelper(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordP
 		auto iterator = priorityQueue.top();
 		priorityQueue.pop();
 
-		// read and write
+		// time for the inside work
 		inside(iterator);
 
+		// push next in if possible
 		if (iterator->advance())
 		{
 			priorityQueue.push(iterator);
@@ -69,8 +62,8 @@ void unifiedMergeHelper(vector<MyDB_RecordIteratorAltPtr> &mergeUs, MyDB_RecordP
 void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIteratorAltPtr> &mergeUs,
 									 function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
-	// use a helper to read and write
-	MyDB_RecordPtr helper = sortIntoMe.getEmptyRecord();
+	// copy the lhs record as a helper to read and write
+	MyDB_RecordPtr helper = make_shared<MyDB_Record>(lhs->getSchema());
 
 	auto inside = [&sortIntoMe, helper](MyDB_RecordIteratorAltPtr iterator)
 	{
@@ -82,16 +75,17 @@ void mergeIntoFile(MyDB_TableReaderWriter &sortIntoMe, vector<MyDB_RecordIterato
 }
 
 // merge k list at a time
-vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector<MyDB_RecordIteratorAltPtr> &mergeUs, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs, MyDB_RecordPtr helper)
+vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector<MyDB_RecordIteratorAltPtr> &mergeUs, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs)
 {
 	// init the result
 	vector<MyDB_PageReaderWriter> result;
 	// init the reader writer
 	MyDB_PageReaderWriter current(*parent);
+	// copy the lhs record as a helper to read and write
+	MyDB_RecordPtr helper = make_shared<MyDB_Record>(lhs->getSchema());
 
 	auto inside = [&current, &parent, &result, helper](MyDB_RecordIteratorAltPtr iterator)
 	{
-		// read and write
 		iterator->getCurrent(helper);
 
 		if (!current.append(helper))
@@ -137,7 +131,7 @@ void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &s
 
 	for (auto currentRun : allRuns)
 	{
-		auto sortedRun = mergeIntoList(sortMe.getBufferMgr(), currentRun, comparator, lhs, rhs, sortMe.getEmptyRecord());
+		auto sortedRun = mergeIntoList(sortMe.getBufferMgr(), currentRun, comparator, lhs, rhs);
 		mergeUs.push_back(getIteratorAlt(sortedRun));
 	}
 
