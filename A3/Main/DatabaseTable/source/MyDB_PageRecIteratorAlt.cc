@@ -18,7 +18,9 @@
 
 void MyDB_PageRecIteratorAlt ::getCurrent(MyDB_RecordPtr intoMe)
 {
-	void *pos = bytesConsumed + (char *)myPage->getBytes();
+	PageMeta *pageHeader = castPageHeader(myPage);
+	// do the pointer arrithmetic directly, no need to deref
+	void *pos = (void *)(pageHeader->recs + bytesConsumed - sizeof(PageMeta));
 	void *nextPos = intoMe->fromBinary(pos);
 	nextRecSize = ((char *)nextPos) - ((char *)pos);
 }

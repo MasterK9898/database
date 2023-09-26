@@ -23,7 +23,7 @@ void MyDB_PageRecIterator ::getNext()
 	{
 		PageMeta *pageHeader = castPageHeader(myPage);
 		// do the pointer arrithmetic directly, no need to deref
-		void *pos = (void *)(pageHeader->recs + bytesConsumed);
+		void *pos = (void *)(pageHeader->recs + bytesConsumed - sizeof(PageMeta));
 		myRec->fromBinary(pos);
 		bytesConsumed += myRec->getBinarySize();
 	}
@@ -37,7 +37,6 @@ void *MyDB_PageRecIterator ::getCurrentPointer()
 bool MyDB_PageRecIterator ::hasNext()
 {
 	PageMeta *pageHeader = castPageHeader(myPage);
-	std::cout << " current usage " << bytesConsumed << " total " << pageHeader->numBytesUsed << std::endl;
 	return (bytesConsumed < pageHeader->numBytesUsed + sizeof(PageMeta));
 }
 
