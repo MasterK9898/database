@@ -13,12 +13,11 @@
 void sort(int runSize, MyDB_TableReaderWriter &sortMe, MyDB_TableReaderWriter &sortIntoMe,
           function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs);
 
-// helper function.  Gets two iterators, leftIter and rightIter.  It is assumed that these are iterators over
+// helper function.  Gets a list of Iterators.  It is assumed that these are iterators over
 // sorted lists of records.  This function then merges all of those records into a list of anonymous pages,
 // and returns the list of anonymous pages to the caller.  The resulting list of anonymous pages is sorted.
 // Comparisons are performed using comparator, lhs, rhs
-vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, MyDB_RecordIteratorAltPtr leftIter,
-                                            MyDB_RecordIteratorAltPtr rightIter, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs);
+vector<MyDB_PageReaderWriter> mergeIntoList(MyDB_BufferManagerPtr parent, vector<MyDB_RecordIteratorAltPtr> &mergeUs, function<bool()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs);
 
 // accepts a list of iterators called mergeUs.  It is assumed that these are all iterators over sorted lists
 // of records.  This function then merges all of those records and appends them to the file sortIntoMe.  If
