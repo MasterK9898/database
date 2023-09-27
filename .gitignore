@@ -5,3 +5,4 @@
 **/Build/**
 !**/Build/**/SConstruct
 !**/Build/**/*.tbl
+**/A0/**
