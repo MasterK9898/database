@@ -1,329 +1,248 @@
 
-
-/****************************************************
-** COPYRIGHT 2016, Chris Jermaine, Rice University **
-**                                                 **
-** The MyDB Database System, COMP 530              **
-** Note that this file contains SOLUTION CODE for  **
-** A1.  You should not be looking at this file     **
-** unless you have completed A1!                   **
-****************************************************/
-
-
 #ifndef BUFFER_MGR_C
 #define BUFFER_MGR_C
 
-#include <fcntl.h>
-#include <iostream>
-#include "MyDB_BufferManager.h"
-#include "MyDB_Page.h"
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
+#include <string>
+#include <vector>
+#include <unordered_map>
 #include <utility>
+#include <memory>
+#include <cstdio>
+#include <fcntl.h>
+#include <unistd.h>
+#include <iostream>
+#include "MyDB_Page.h"
+#include "MyDB_PageHandle.h"
+#include "MyDB_Table.h"
+#include "MyDB_BufferManager.h"
 
 using namespace std;
 
-size_t MyDB_BufferManager :: getPageSize () {
-	return pageSize;
+MyDB_PageHandle MyDB_BufferManager ::getPage(MyDB_TablePtr whichTable, long i)
+{
+  return this->getNormalPage(whichTable, i, false);
 }
 
-MyDB_PageHandle MyDB_BufferManager :: getPage (MyDB_TablePtr whichTable, long i) {
-		
-	// open the file, if it is not open
-	if (fds.count (whichTable) == 0) {
-		int fd = open (whichTable->getStorageLoc ().c_str (), O_CREAT | O_RDWR, 0666);
-		fds[whichTable] = fd;
-	}
-
-	// make sure we don't have a null table
-	if (whichTable == nullptr) {
-		cout << "Can't allocate a page with a null table!!\n";
-		exit (1);
-	}
-	
-	// next, see if the page is already in existence
-	pair <MyDB_TablePtr, long> whichPage = make_pair (whichTable, i);
-	if (allPages.count (whichPage) == 0) {
-
-		// it is not there, so create a page
-		MyDB_PagePtr returnVal = make_shared <MyDB_Page> (whichTable, i, *this);
-		allPages [whichPage] = returnVal;
-		return make_shared <MyDB_PageHandleBase> (returnVal);
-	}
-
-	// it is there, so return it
-	return make_shared <MyDB_PageHandleBase> (allPages [whichPage]);
+MyDB_PageHandle MyDB_BufferManager ::getPage()
+{
+  return this->getAnonPage(false);
 }
 
-MyDB_PageHandle MyDB_BufferManager :: getPage () {
-
-	// open the file, if it is not open
-	if (fds.count (nullptr) == 0) {
-		int fd = open (tempFile.c_str (), O_TRUNC | O_CREAT | O_RDWR, 0666);
-		fds[nullptr] = fd;
-	}
-
-	// check if we are extending the size of the temp file
-	size_t pos;
-	if (availablePositions.size () == 0) {
-		pos = lastTempPos++;
-	} else {
-		pos = availablePositions.top ();
-		availablePositions.pop ();
-	}
-
-	MyDB_PagePtr returnVal = make_shared <MyDB_Page> (nullptr, pos, *this);
-	return make_shared <MyDB_PageHandleBase> (returnVal);
+MyDB_PageHandle MyDB_BufferManager ::getPinnedPage(MyDB_TablePtr whichTable, long i)
+{
+  return this->getNormalPage(whichTable, i, true);
 }
 
-void MyDB_BufferManager :: kickOutPage () {
-	
-	// find the oldest page
-	auto it = lastUsed.begin();
-	auto page = *it;
-
-	if (lastUsed.size () == 0)
-		cout << "Bad: all buffer memory is exhausted!";
-
-	// make sure we don't have a null pointer
-	if (page->bytes == nullptr) {
-		cout << "Bad!! Kicking out a page with no RAM.";
-		exit (1);
-	}
-
-	// write it back if necessary
-	if (page->isDirty) {
-		lseek (fds[page->myTable], page->pos * pageSize, SEEK_SET);
-		write (fds[page->myTable], page->bytes, pageSize);
-		page->isDirty = false;
-	}
-
-	// remove it
-	lastUsed.erase (page);
-
-	// remember its RAM
-	availableRam.push_back (page->bytes);
-	page->bytes = nullptr;
-
-	// if this guy has no references, kill him
-	if (page->refCount == 0)
-		killPage (page);
+MyDB_PageHandle MyDB_BufferManager ::getPinnedPage()
+{
+  return this->getAnonPage(true);
 }
 
-void MyDB_BufferManager :: killPage (MyDB_PagePtr killMe) {
-	
-
-	// if this is an anon page...
-	if (killMe->myTable == nullptr) {
-
-		// recycle him
-		availablePositions.push (killMe->pos);
-		if (killMe->bytes != nullptr) {
-			availableRam.push_back (killMe->bytes);
-		}
-
-		// if he is in the LRU list, remove him
-		if (lastUsed.count (killMe) != 0) {
-			auto page = *(lastUsed.find (killMe));
-			lastUsed.erase (page);
-		}
-
-	// if this is a pinned, non-anon page whose data is buffered it converts...
-	} else if (lastUsed.count (killMe) == 0 && killMe->bytes != nullptr) {
-		killMe->timeTick = ++lastTimeTick;
-		lastUsed.insert (killMe);
-
-	// this guy has no data, so just kill him
-	} else if (killMe->bytes == nullptr) {
-		pair <MyDB_TablePtr, long> whichPage = make_pair (killMe->myTable, killMe->pos);
-		allPages.erase (whichPage);
-	}
+void MyDB_BufferManager ::unpin(MyDB_PageHandle unpinMe)
+{
+  unpinMe->unPin();
 }
 
-void MyDB_BufferManager :: access (MyDB_PagePtr updateMe) {
-	
-	// if this page was just accessed, get outta here
-	if (updateMe->timeTick > lastTimeTick - (numPages / 2) && updateMe->bytes != nullptr) {
-		return;
-	}
-
-	// first, see if it is currently in the LRU list; if it is, update it
-	if (lastUsed.count (updateMe) == 1) {
-		auto page = *(lastUsed.find (updateMe));
-		lastUsed.erase (page);
-		updateMe->timeTick = ++lastTimeTick;
-		lastUsed.insert (updateMe);
-
-	// here, we don't have the bytes...
-	} else if (updateMe->bytes == nullptr) {
-		
-		// not in the LRU list means that we don't have its contents buffered
-		// see if there is space
-		if (availableRam.size () == 0)
-			kickOutPage ();
-
-		// if there is no space, we cannot do anything
-		if (availableRam.size () == 0) {
-			cout << "Can't get any RAM to read a page!!\n";
-			exit (1);
-		}
-
-		// get some RAM for the page
-		updateMe->bytes = availableRam[availableRam.size () - 1]; 
-		updateMe->numBytes = pageSize;
-		availableRam.pop_back ();
-
-		// and read it
-		lseek (fds[updateMe->myTable], updateMe->pos * pageSize, SEEK_SET);
-		read (fds[updateMe->myTable], updateMe->bytes, pageSize);
-
-		updateMe->timeTick = ++lastTimeTick;
-		lastUsed.insert (updateMe);
-	}
+size_t MyDB_BufferManager::getPageSize()
+{
+  return this->pageSize;
 }
 
-MyDB_PageHandle MyDB_BufferManager :: getPinnedPage (MyDB_TablePtr whichTable, long i) {
+MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
+{
+  // init the clock
+  clock.resize(numPages, nullptr);
+  // create the memory
+  this->memory = malloc(pageSize * numPages);
+  // open the temp file
+  this->openFile(nullptr);
 
-	// open the file, if it is not open
-	if (fds.count (whichTable) == 0) {
-		int fd = open (whichTable->getStorageLoc ().c_str (), O_CREAT | O_RDWR, 0666);
-		fds[whichTable] = fd;
-	}
-
-	// make sure we don't have a null table
-	if (whichTable == nullptr) {
-		cout << "Can't allocate a page with a null table!!\n";
-		exit (1);
-	}
-
-	// first, see if the page is there in the buffer
-	pair <MyDB_TablePtr, long> whichPage = make_pair (whichTable, i);
-	MyDB_PagePtr returnVal;
-
-	// see if we already know him
-	if (allPages.count (whichPage) == 0) {
-
-		// in this case, we do not
-		returnVal = make_shared <MyDB_Page> (whichTable, i, *this);
-		allPages [whichPage] = returnVal;
-
-	// in this case, we do
-	} else {
-
-		// get him out of the LRU list if he is there
-		returnVal = allPages [whichPage];
-		if (lastUsed.count (returnVal) != 0) {
-			auto page = *(lastUsed.find (returnVal));
-	       		lastUsed.erase (page);
-		}
-	}
-
-	// see if we need to get his data
-	if (returnVal->bytes == nullptr) {
-
-		// see if there is space to make a pinned page
-		if (availableRam.size () == 0)
-			kickOutPage ();
-
-		// if there is no space, we cannot do anything
-		if (availableRam.size () == 0) 
-			return nullptr;
-
-		// set up the return val
-		returnVal->bytes = availableRam[availableRam.size () - 1];
-		returnVal->numBytes = pageSize;
-		availableRam.pop_back ();
-
-		// and read it
-		lseek (fds[returnVal->myTable], returnVal->pos * pageSize, SEEK_SET);
-		read (fds[returnVal->myTable], returnVal->bytes, pageSize);
-
-	}	
-
-	// get outta here
-	return make_shared <MyDB_PageHandleBase> (returnVal);
+  // if malloc failed, then the initialization failed
+  if (this->memory == nullptr)
+  {
+    throw std::runtime_error("Dude, there's not enough memory for buffering, maybe you shall buy a better machine?");
+  }
 }
 
-MyDB_PageHandle MyDB_BufferManager :: getPinnedPage () {
+MyDB_BufferManager ::~MyDB_BufferManager()
+{
+  // write back all pages
+  for (auto pair : this->pageTable)
+  {
+    auto currentPage = pair.second;
 
-	// see if there is space to make a pinned page
-	if (availableRam.size () == 0)
-		kickOutPage ();
+    this->writeBackPage(currentPage);
+  }
 
-	// if there is no space, we cannot do anything
-	if (availableRam.size () == 0) 
-		return nullptr;
+  // free all memory
+  free(this->memory);
 
-	// get a page to return
-	MyDB_PageHandle returnVal = getPage ();
-	returnVal->page->bytes = availableRam[availableRam.size () - 1];
-	returnVal->page->numBytes = pageSize;
-	availableRam.pop_back ();
+  // close all file
+  for (auto pair : this->fileTable)
+  {
+    int fd = pair.second;
+    close(fd);
+  }
 
-	// and get outta here
-	return returnVal;
+  // say goodbye the temp file
+  remove(tempFile.c_str());
 }
 
-void MyDB_BufferManager :: unpin (MyDB_PagePtr unpinMe) {
-	unpinMe->timeTick = ++lastTimeTick;
-	lastUsed.insert (unpinMe);
+void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
+{
+  if (page->bytes == nullptr)
+  // check the pointer to see if it is buffered
+  {
+    size_t evictIndex = evict();
+
+    // calculate the byte position by offset
+    page->bytes = (void *)((char *)this->memory + evictIndex * this->pageSize);
+
+    // read from file
+    int fd = this->openFile(page->table);
+    lseek(fd, page->pageIndex * this->pageSize, SEEK_SET);
+    read(fd, page->bytes, this->pageSize);
+
+    // update
+    this->clock.at(evictIndex) = page;
+  }
+
+  // update the "do not kill bit" according to stage
+  if (this->initialized)
+  {
+    page->doNotKill = true;
+  }
 }
 
-MyDB_BufferManager :: MyDB_BufferManager (size_t pageSizeIn, size_t numPagesIn, string tempFileIn) {
-
-	// remember the inputs
-	pageSize = pageSizeIn;
-
-	// this is the location where we write temp pages
-	tempFile = tempFileIn;
-
-	// start at time tick zero
-	lastTimeTick = 0;
-
-	// position in temp file
-	lastTempPos = 0;
-
-	// the number of pages
-	numPages = numPagesIn;
-
-	// create all of the RAM
-	for (size_t i = 0; i < numPages; i++) {
-		availableRam.push_back (malloc (pageSizeIn));
-	}	
+void MyDB_BufferManager::writeBackPage(MyDB_PagePtr page)
+{
+  // the page itself could still be kept, for future use
+  // but it's memory is gone, and need to read again from disk
+  if (page->bytes != nullptr)
+  // nothing todo if the page has no bytes at all
+  {
+    if (page->dirty)
+    // dirty page write back
+    {
+      int fd = this->openFile(page->table);
+      lseek(fd, page->pageIndex * pageSize, SEEK_SET);
+      write(fd, page->bytes, pageSize);
+      page->dirty = false;
+    }
+    page->bytes = nullptr;
+  }
 }
 
-MyDB_BufferManager :: ~MyDB_BufferManager () {
-	
-	for (auto page : allPages) {
-
-		if (page.second->bytes != nullptr) {
-
-			// write it back if necessary
-			if (page.second->isDirty) {
-				lseek (fds[page.second->myTable], page.second->pos * pageSize, SEEK_SET);
-				write (fds[page.second->myTable], page.second->bytes, pageSize);
-			}
-
-			free (page.second->bytes);
-			page.second->bytes = nullptr;
-		}
-	}
-
-	// delete the rest of the RAM
-	for (auto ram : availableRam) {
-		free (ram);
-	}
-
-	// finally, close the files
-	for (auto fd : fds) {
-		close (fd.second);
-	}
-
-	unlink (tempFile.c_str ());
+// encapsulats the file table away from the outside, proxy pattern
+int MyDB_BufferManager::openFile(MyDB_TablePtr whichTable)
+{
+  if (this->fileTable.count(whichTable) == 0)
+  // open the file and store it onto the table if it's not
+  {
+    // for null pointers (anon page case), use the global temp file name
+    string fileName = whichTable == nullptr ? this->tempFile : whichTable->getStorageLoc();
+    int fd = open(fileName.c_str(), O_CREAT | O_RDWR, 0666);
+    this->fileTable[whichTable] = fd;
+    return fd;
+  }
+  else
+  {
+    return this->fileTable[whichTable];
+  }
 }
 
+// say goodbye to somebody on clock
+// free the meory and points clock hand to this unit
+// the idea of clock hand is not visible to the out side, a layer of encapsulation
+// no matter whether there's a "hole" in the clock ,the clock only turns to the next position
+size_t MyDB_BufferManager::evict()
+{
+
+  // track the total rounds, prevent infinite loop
+  size_t count = 0;
+
+  while (true)
+  {
+    if (count++ > this->numPages * 2)
+    // even in the worst case, this will mean a infinite loop
+    {
+      throw std::runtime_error("Dude, you got a infinite loop, are all the pages pinned?");
+    }
+    auto currentPage = this->clock.at(this->clockHand);
+
+    if (currentPage == nullptr)
+    // this unit on clock is empty
+    // use it directly
+    {
+      break;
+    }
+    if (!currentPage->pinned)
+    // pinned pages are ignored
+    {
+      if (currentPage->doNotKill)
+      // second chance given
+      {
+        currentPage->doNotKill = false;
+      }
+      else
+      // no chance, say goodbye
+      {
+        this->writeBackPage(currentPage);
+        break;
+      }
+    }
+
+    this->clockHand++;
+    this->clockHand %= this->numPages;
+
+    if (this->clockHand == 0)
+    // if the clock reaches 0 again, then the clock is full
+    {
+      this->initialized = true;
+    }
+  }
+  // at this stage, the target is figured out and dealt with
+
+  // return the current clock position
+  size_t evictIndex = this->clockHand;
+  // next time, start from the next index
+  this->clockHand++;
+  this->clockHand %= this->numPages;
+  return evictIndex;
+}
+
+MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
+{
+  this->openFile(whichTable);
+
+  // get the key
+  pair<MyDB_TablePtr, long> key = make_pair(whichTable, i);
+  if (this->pageTable.count(key) == 0)
+  // create one from scratch, insert to table
+  {
+    // it is not there, so create a page
+    auto newPage = make_shared<MyDB_Page>(whichTable, i, this, pinned);
+    this->pageTable[key] = newPage;
+    return make_shared<MyDB_PageHandleBase>(newPage);
+  }
+  else
+  // get from table
+  {
+    MyDB_PagePtr page = this->pageTable[key];
+    if (pinned)
+    // update pinned if needed
+    {
+      page->pinned = true;
+    }
+    return make_shared<MyDB_PageHandleBase>(page);
+  }
+}
+
+MyDB_PageHandle MyDB_BufferManager::getAnonPage(bool pinned)
+{
+  // under radar, no record on table
+  auto anonPage = make_shared<MyDB_Page>(nullptr, this->tempIndex++, this, pinned);
+  return make_shared<MyDB_PageHandleBase>(anonPage);
+}
 
 #endif
-
-
