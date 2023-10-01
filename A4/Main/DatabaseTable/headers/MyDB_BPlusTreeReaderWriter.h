@@ -44,7 +44,7 @@ public:
 	void printTree();
 
 	// print the contents of the tree to the screen
-	void printTree(int whichPage, int depth);
+	void printTree(int whichPage);
 
 private:
 	/* NOTE THAT EACH OF THESE METHODS ARE OPTIONAL.  They are a suggestion for a set of helper

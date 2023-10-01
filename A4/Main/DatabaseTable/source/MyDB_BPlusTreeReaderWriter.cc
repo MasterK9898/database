@@ -98,9 +98,9 @@ void MyDB_BPlusTreeReaderWriter ::append(MyDB_RecordPtr rec)
 
     root.append(helper);
   }
-
   // now append it
   MyDB_RecordPtr res = append(this->rootLocation, rec);
+
   if (res == nullptr)
   // every thing is doing ok
   {
@@ -216,7 +216,6 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe,
   {
     free(position);
   }
-
   return res;
 }
 
@@ -224,7 +223,6 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::append(int whichPage, MyDB_RecordPtr
 {
   // get the page first
   MyDB_PageReaderWriter page = this->operator[](whichPage);
-
   if (page.getType() == MyDB_PageType::RegularPage)
   // regular page, try to append
   {
@@ -258,9 +256,18 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::append(int whichPage, MyDB_RecordPtr
           return nullptr;
         }
         else
-        // split happens
+        // split happends
         {
-          return this->append(whichPage, res);
+          if (page.append(res))
+          // try to stick it to current page
+          {
+            return nullptr;
+          }
+          else
+          // we cannot handle it, kick it up
+          {
+            return split(page, res);
+          }
         }
       }
     }
@@ -277,10 +284,10 @@ MyDB_INRecordPtr MyDB_BPlusTreeReaderWriter ::getINRecord()
 void MyDB_BPlusTreeReaderWriter ::printTree()
 {
   cout << "root page at " << rootLocation << endl;
-  printTree(rootLocation, 0);
+  printTree(rootLocation);
 }
 
-void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage, int depth)
+void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage)
 {
   MyDB_PageReaderWriter page = this->operator[](whichPage);
   MyDB_RecordIteratorAltPtr iter = page.getIteratorAlt();
@@ -290,25 +297,26 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage, int depth)
   {
     MyDB_RecordPtr helper = getEmptyRecord();
 
-    cout << "depth " << depth << " leaf page " << whichPage;
+    cout << "leaf page " << whichPage << endl;
+    cout << "======================== start of current page " << endl;
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " key " << getKey(helper) << " |";
+      cout << " record " << helper << endl;
     }
-    cout << endl;
+    cout << "======================== end of current page " << endl;
   }
   else
   // non-leaf page, print slef info, then the child info
   {
     MyDB_INRecordPtr helper = getINRecord();
 
-    cout << "depth " << depth << " node page " << whichPage;
+    cout << "node page " << whichPage;
     while (iter->advance())
     {
       iter->getCurrent(helper);
       cout << " key " << getKey(helper) << " pointing to " << helper->getPtr() << " |" << endl;
-      printTree(helper->getPtr(), depth + 1);
+      printTree(helper->getPtr());
     }
   }
 }
