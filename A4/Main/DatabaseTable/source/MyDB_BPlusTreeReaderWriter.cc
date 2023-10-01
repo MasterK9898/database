@@ -123,6 +123,18 @@ void MyDB_BPlusTreeReaderWriter ::append(MyDB_RecordPtr rec)
 
 MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe, MyDB_RecordPtr addMe)
 {
+	auto getHelperRecord = [this](MyDB_PageType type) -> MyDB_RecordPtr
+	{
+		if (type == MyDB_PageType::RegularPage)
+		{
+			return getEmptyRecord();
+		}
+		else
+		{
+			return getINRecord();
+		}
+	};
+
 	MyDB_RecordPtr lhs = getHelperRecord(splitMe.getType());
 	MyDB_RecordPtr rhs = getHelperRecord(splitMe.getType());
 
@@ -362,18 +374,6 @@ array<function<bool()>, 2> MyDB_BPlusTreeReaderWriter::getComparators(MyDB_AttVa
 	function<bool()> highComparator = this->buildComparator(highRec, rec);
 
 	return {lowComparator, highComparator};
-}
-
-MyDB_RecordPtr MyDB_BPlusTreeReaderWriter::getHelperRecord(MyDB_PageType type)
-{
-	if (type == MyDB_PageType::RegularPage)
-	{
-		return getEmptyRecord();
-	}
-	else
-	{
-		return getINRecord();
-	}
 }
 
 #endif

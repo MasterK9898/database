@@ -96,9 +96,6 @@ private:
 	// a helper to get the low and high comparators
 	// first one is low, second one is high
 	array<function<bool()>, 2> getComparators(MyDB_AttValPtr low, MyDB_AttValPtr high, MyDB_RecordPtr rec);
-
-	// get record helper depending on the type
-	MyDB_RecordPtr getHelperRecord(MyDB_PageType type);
 };
 
 #endif
