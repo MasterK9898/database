@@ -103,6 +103,9 @@ public:
 	// returns the actual bytes
 	void *getBytes();
 
+	// get the current page
+	MyDB_PageHandle getPage();
+
 private:
 	// this is the page that we are messing with
 	MyDB_PageHandle myPage;

@@ -219,4 +219,9 @@ void *MyDB_PageReaderWriter ::getBytes()
 	return myPage->getBytes();
 }
 
+MyDB_PageHandle MyDB_PageReaderWriter ::getPage()
+{
+	return myPage;
+}
+
 #endif
