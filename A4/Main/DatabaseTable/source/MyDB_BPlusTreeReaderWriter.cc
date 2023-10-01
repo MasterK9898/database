@@ -262,6 +262,18 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::append(int whichPage, MyDB_RecordPtr
           if (page.append(res))
           // try to stick it to current page
           {
+            // MyDB_INRecordPtr anotherHelper = getINRecord();
+            // function<bool()> comparator = buildComparator(res, anotherHelper);
+            // page.sortInPlace(comparator, res, anotherHelper);
+            // return nullptr;
+
+            // MyDB_INRecordPtr otherRec = getINRecord();
+            // function<bool()> comparator = buildComparator(res, otherRec);
+            // page.sortInPlace(comparator, res, otherRec);
+            MyDB_RecordPtr lhs = getEmptyRecord();
+            MyDB_RecordPtr rhs = getEmptyRecord();
+            function<bool()> comparator = buildComparator(lhs, rhs);
+            page.sortInPlace(comparator, lhs, rhs);
             return nullptr;
           }
           else
@@ -393,7 +405,7 @@ MyDB_RecordIteratorAltPtr MyDB_BPlusTreeReaderWriter::unifiedGetRangeIteratorAlt
   // get the pages
   vector<MyDB_PageReaderWriter> pages;
   this->discoverPages(this->rootLocation, pages, low, high);
-  cout << "here " << pages.size() << endl;
+  // cout << "here " << pages.size() << endl;
   // make the comparator
   MyDB_RecordPtr lhs = this->getEmptyRecord();
   MyDB_RecordPtr rhs = this->getEmptyRecord();
