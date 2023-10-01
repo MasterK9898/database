@@ -280,12 +280,6 @@ void MyDB_BPlusTreeReaderWriter ::printTree()
   printTree(rootLocation, 0);
 }
 
-void MyDB_BPlusTreeReaderWriter ::printTree()
-{
-  cout << "root page at " << rootLocation << endl;
-  printTree(rootLocation, 0);
-}
-
 void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage, int depth)
 {
   MyDB_PageReaderWriter page = this->operator[](whichPage);
@@ -300,7 +294,7 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage, int depth)
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " key " << getKey(helper) << " | ";
+      cout << " key " << getKey(helper) << " |";
     }
     cout << endl;
   }
@@ -313,7 +307,7 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage, int depth)
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " key " << getKey(helper) << " pointing to " << helper->getPtr() << " | " << endl;
+      cout << " key " << getKey(helper) << " pointing to " << helper->getPtr() << " |" << endl;
       printTree(helper->getPtr(), depth + 1);
     }
   }
