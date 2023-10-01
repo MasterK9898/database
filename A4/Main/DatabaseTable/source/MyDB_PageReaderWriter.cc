@@ -152,7 +152,7 @@ void MyDB_PageReaderWriter ::
 	int bytesConsumed = 0;
 	while (bytesConsumed != pageHeader->numBytesUsed)
 	{
-		void *pos = bytesConsumed + (char *)temp;
+		void *pos = (void *)(pageHeader->recs + bytesConsumed);
 		positions.push_back(pos);
 		void *nextPos = lhs->fromBinary(pos);
 		bytesConsumed += ((char *)nextPos) - ((char *)pos);
