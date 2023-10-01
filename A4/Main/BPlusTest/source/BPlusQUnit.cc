@@ -168,7 +168,6 @@ int main(int argc, char *argv[])
 		low->set("slyly ironic");
 		MyDB_StringAttValPtr high = make_shared<MyDB_StringAttVal>();
 		high->set("slyly ironic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-
 		myIter = supplierTable.getRangeIteratorAlt(low, high);
 		int counter = 0;
 		bool foundIt = false;
@@ -179,6 +178,7 @@ int main(int argc, char *argv[])
 			if (temp->getAtt(0)->toInt() == 4171)
 				foundIt = true;
 		}
+		cout << "found it ? " << foundIt << " count " << counter << "\n";
 		bool result = foundIt && (counter = 4192);
 		if (result)
 			cout << "\tTEST PASSED\n";

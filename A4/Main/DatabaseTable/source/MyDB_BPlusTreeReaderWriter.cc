@@ -52,26 +52,27 @@ void MyDB_BPlusTreeReaderWriter ::discoverPages(int whichPage, vector<MyDB_PageR
   // else we need a dfs, compare the page's child, until we reach the leaf
   {
     // fortunately we got the alt iter
-    MyDB_RecordIteratorAltPtr helper = page.getIteratorAlt();
+    MyDB_RecordIteratorAltPtr iter = page.getIteratorAlt();
 
-    MyDB_RecordPtr rec = this->getEmptyRecord();
+    MyDB_INRecordPtr helper = getINRecord();
 
-    auto comparators = this->getComparators(low, high, rec);
+    auto comparators = this->getComparators(low, high, helper);
 
-    while (helper->advance())
+    while (iter->advance())
     {
-      helper->getCurrent(rec);
+      iter->getCurrent(helper);
 
-      // if the record is in the range, we need to go deeper
-      if (comparators[0]() && comparators[1]())
+      if (comparators[0]())
       {
-        // get the child page
-        int childPageNum = rec->getAtt(1)->toInt();
-        this->discoverPages(childPageNum, list, low, high);
+        continue;
       }
-      else
+
+      // incursive call
+      discoverPages(helper->getPtr(), list, low, high);
+
+      if (comparators[1]())
+      // due to inclusive, high check is at the end of the loop
       {
-        // if the record is not in the range, we can stop
         break;
       }
     }
@@ -392,7 +393,7 @@ MyDB_RecordIteratorAltPtr MyDB_BPlusTreeReaderWriter::unifiedGetRangeIteratorAlt
   // get the pages
   vector<MyDB_PageReaderWriter> pages;
   this->discoverPages(this->rootLocation, pages, low, high);
-
+  cout << "here " << pages.size() << endl;
   // make the comparator
   MyDB_RecordPtr lhs = this->getEmptyRecord();
   MyDB_RecordPtr rhs = this->getEmptyRecord();
