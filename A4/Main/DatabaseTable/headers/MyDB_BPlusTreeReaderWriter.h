@@ -1,5 +1,3 @@
-
-
 #ifndef BPLUS_H
 #define BPLUS_H
 
@@ -44,6 +42,9 @@ public:
 
 	// print the contents of the tree to the screen
 	void printTree();
+
+	// print the contents of the tree to the screen
+	void printTree(int whichPage, int depth);
 
 private:
 	/* NOTE THAT EACH OF THESE METHODS ARE OPTIONAL.  They are a suggestion for a set of helper
