@@ -145,14 +145,17 @@ void MyDB_PageReaderWriter ::
 	void *temp = malloc(pageSize);
 	memcpy(temp, myPage->getBytes(), pageSize);
 
+	// we need another page header for the temp one
+	PageMeta *pageHeaderTemp = (PageMeta *)temp;
+
 	// first, read in the positions of all of the records
 	vector<void *> positions;
 
 	// this basically iterates through all of the records on the page
 	int bytesConsumed = 0;
-	while (bytesConsumed != pageHeader->numBytesUsed)
+	while (bytesConsumed != pageHeaderTemp->numBytesUsed)
 	{
-		void *pos = (void *)(pageHeader->recs + bytesConsumed);
+		void *pos = (void *)(pageHeaderTemp->recs + bytesConsumed);
 		positions.push_back(pos);
 		void *nextPos = lhs->fromBinary(pos);
 		bytesConsumed += ((char *)nextPos) - ((char *)pos);

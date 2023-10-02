@@ -262,16 +262,8 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::append(int whichPage, MyDB_RecordPtr
           if (page.append(res))
           // try to stick it to current page
           {
-            // MyDB_INRecordPtr anotherHelper = getINRecord();
-            // function<bool()> comparator = buildComparator(res, anotherHelper);
-            // page.sortInPlace(comparator, res, anotherHelper);
-            // return nullptr;
-
-            // MyDB_INRecordPtr otherRec = getINRecord();
-            // function<bool()> comparator = buildComparator(res, otherRec);
-            // page.sortInPlace(comparator, res, otherRec);
-            MyDB_RecordPtr lhs = getEmptyRecord();
-            MyDB_RecordPtr rhs = getEmptyRecord();
+            MyDB_RecordPtr lhs = getINRecord();
+            MyDB_RecordPtr rhs = getINRecord();
             function<bool()> comparator = buildComparator(lhs, rhs);
             page.sortInPlace(comparator, lhs, rhs);
             return nullptr;
@@ -328,7 +320,7 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage)
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " key " << getKey(helper) << " pointing to " << helper->getPtr() << " |" << endl;
+      cout << " key " << getKey(helper) << " record " << helper << " pointing to " << helper->getPtr() << " |" << endl;
       printTree(helper->getPtr());
     }
   }
