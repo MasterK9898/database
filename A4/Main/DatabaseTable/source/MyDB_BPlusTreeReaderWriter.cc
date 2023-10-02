@@ -56,21 +56,21 @@ void MyDB_BPlusTreeReaderWriter ::discoverPages(int whichPage, vector<MyDB_PageR
 
     MyDB_INRecordPtr helper = getINRecord();
 
-    auto comparators = this->getComparators(low, high, helper);
+    auto [lowComparator, highComparator] = this->getComparators(low, high, helper);
 
+    // do for all child
     while (iter->advance())
     {
       iter->getCurrent(helper);
 
-      if (comparators[0]())
+      if (lowComparator())
       {
         continue;
       }
 
-      // incursive call
       discoverPages(helper->getPtr(), list, low, high);
 
-      if (comparators[1]())
+      if (highComparator())
       // due to inclusive, high check is at the end of the loop
       {
         break;
@@ -409,10 +409,10 @@ MyDB_RecordIteratorAltPtr MyDB_BPlusTreeReaderWriter::unifiedGetRangeIteratorAlt
   MyDB_RecordPtr rec = this->getEmptyRecord();
 
   // low & high comparator
-  auto comparators = this->getComparators(low, high, rec);
+  auto [lowComparator, highComparator] = this->getComparators(low, high, rec);
 
-  return make_shared<MyDB_PageListIteratorSelfSortingAlt>(pages, lhs, rhs, comparator, rec, comparators[0],
-                                                          comparators[1], sort);
+  return make_shared<MyDB_PageListIteratorSelfSortingAlt>(pages, lhs, rhs, comparator, rec, lowComparator,
+                                                          highComparator, sort);
 }
 
 array<function<bool()>, 2> MyDB_BPlusTreeReaderWriter::getComparators(MyDB_AttValPtr low, MyDB_AttValPtr high, MyDB_RecordPtr rec)
