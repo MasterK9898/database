@@ -126,6 +126,7 @@ void MyDB_BPlusTreeReaderWriter ::append(MyDB_RecordPtr rec)
 
 MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe, MyDB_RecordPtr addMe)
 {
+  // create a helper function to get the records
   auto getHelperRecord = [this](MyDB_PageType type) -> MyDB_RecordPtr
   {
     if (type == MyDB_PageType::RegularPage)
@@ -138,12 +139,8 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe,
     }
   };
 
-  MyDB_RecordPtr lhs = getHelperRecord(splitMe.getType());
-  MyDB_RecordPtr rhs = getHelperRecord(splitMe.getType());
+  // the following logic is modified from sortInPlace
 
-  auto comparator = buildComparator(lhs, rhs);
-
-  // modified from sortInPlace
   PageMeta *pageHeader = castPageHeader(splitMe.getPage());
   // first, read in the positions of all of the records
   vector<void *> positions;
@@ -153,27 +150,33 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe,
   addMe->toBinary(current);
   positions.push_back(current);
 
+  size_t pageSize = splitMe.getPage()->getPageSize();
+  void *temp = malloc(pageSize);
+  memcpy(temp, splitMe.getPage()->getBytes(), pageSize);
+
+  // we need another page header for the temp one
+  PageMeta *pageHeaderTemp = (PageMeta *)temp;
+
   // this basically iterates through all of the records on the page
   MyDB_RecordPtr helper = getHelperRecord(splitMe.getType());
   size_t bytesConsumed = 0;
   while (bytesConsumed != pageHeader->numBytesUsed)
   {
-    void *pos = (void *)(pageHeader->recs + bytesConsumed);
-    helper->fromBinary(pos);
-    // clone a copy to the vector, then we can clear out the page safely
-    current = malloc(helper->getBinarySize());
-    memcpy(current, pos, helper->getBinarySize());
-    positions.push_back(current);
-    // increment the position
-    bytesConsumed += helper->getBinarySize();
+    void *pos = (void *)(pageHeaderTemp->recs + bytesConsumed);
+    positions.push_back(pos);
+    void *nextPos = helper->fromBinary(pos);
+    bytesConsumed += ((char *)nextPos) - ((char *)pos);
   }
 
+  MyDB_RecordPtr lhs = getHelperRecord(splitMe.getType());
+  MyDB_RecordPtr rhs = getHelperRecord(splitMe.getType());
+
+  auto comparator = buildComparator(lhs, rhs);
   // and now we sort the vector of positions, using the record contents to build a comparator
   RecordComparator myComparator(comparator, lhs, rhs);
   std::stable_sort(positions.begin(), positions.end(), myComparator);
 
   // now we have all the data in the vector, we can clear out the page
-  // clear the pages
   MyDB_PageType type = splitMe.getType();
   splitMe.clear();
   splitMe.setType(type);
@@ -213,10 +216,9 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::split(MyDB_PageReaderWriter splitMe,
   }
 
   // last step, free all the memory
-  for (auto position : positions)
-  {
-    free(position);
-  }
+  free(current);
+  free(temp);
+
   return res;
 }
 
@@ -262,6 +264,7 @@ MyDB_RecordPtr MyDB_BPlusTreeReaderWriter ::append(int whichPage, MyDB_RecordPtr
           if (page.append(res))
           // try to stick it to current page
           {
+            // node pages need to be sorted in order to maintain the logic
             MyDB_RecordPtr lhs = getINRecord();
             MyDB_RecordPtr rhs = getINRecord();
             function<bool()> comparator = buildComparator(lhs, rhs);
@@ -288,7 +291,7 @@ MyDB_INRecordPtr MyDB_BPlusTreeReaderWriter ::getINRecord()
 
 void MyDB_BPlusTreeReaderWriter ::printTree()
 {
-  cout << "root page at " << rootLocation << endl;
+  cout << "===root page at " << rootLocation << endl;
   printTree(rootLocation);
 }
 
@@ -307,7 +310,7 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage)
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " record " << helper << endl;
+      cout << "record " << helper << endl;
     }
     cout << "======================== end of current page " << endl;
   }
@@ -316,11 +319,11 @@ void MyDB_BPlusTreeReaderWriter ::printTree(int whichPage)
   {
     MyDB_INRecordPtr helper = getINRecord();
 
-    cout << "node page " << whichPage;
+    cout << "node page " << whichPage << endl;
     while (iter->advance())
     {
       iter->getCurrent(helper);
-      cout << " key " << getKey(helper) << " record " << helper << " pointing to " << helper->getPtr() << " |" << endl;
+      cout << "key " << getKey(helper) << " record " << helper << " pointing to " << helper->getPtr() << " |" << endl;
       printTree(helper->getPtr());
     }
   }

@@ -69,7 +69,6 @@ int main(int argc, char *argv[])
 			myIter->getCurrent(temp);
 			counter++;
 		}
-		cout << "counter = " << counter << endl;
 		bool result = (counter == 10000);
 		if (result)
 			cout << "\tTEST PASSED\n";
@@ -178,7 +177,6 @@ int main(int argc, char *argv[])
 			if (temp->getAtt(0)->toInt() == 4171)
 				foundIt = true;
 		}
-		cout << "found it ? " << foundIt << " count " << counter << "\n";
 		bool result = foundIt && (counter = 4192);
 		if (result)
 			cout << "\tTEST PASSED\n";
