@@ -57,6 +57,7 @@ void MyDB_BPlusTreeReaderWriter ::discoverPages(int whichPage, vector<MyDB_PageR
 
     MyDB_INRecordPtr helper = getINRecord();
 
+    // scons is using c++11, destruction is available in c++17, so I cannot use it
     auto comparators = this->getComparators(low, high, helper);
 
     // do for all child
