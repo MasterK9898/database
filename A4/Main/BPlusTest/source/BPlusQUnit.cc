@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 			if (temp->getAtt(0)->toInt() == 4171)
 				foundIt = true;
 		}
-		bool result = foundIt && (counter = 4192);
+		bool result = foundIt && (counter == 4192);
 		if (result)
 			cout << "\tTEST PASSED\n";
 		else

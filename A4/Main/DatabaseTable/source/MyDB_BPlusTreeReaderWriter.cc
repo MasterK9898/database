@@ -400,7 +400,6 @@ MyDB_RecordIteratorAltPtr MyDB_BPlusTreeReaderWriter::unifiedGetRangeIteratorAlt
   // get the pages
   vector<MyDB_PageReaderWriter> pages;
   this->discoverPages(this->rootLocation, pages, low, high);
-  // cout << "here " << pages.size() << endl;
   // make the comparator
   MyDB_RecordPtr lhs = this->getEmptyRecord();
   MyDB_RecordPtr rhs = this->getEmptyRecord();
