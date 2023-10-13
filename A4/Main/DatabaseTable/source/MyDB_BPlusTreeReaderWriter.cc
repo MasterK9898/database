@@ -52,7 +52,6 @@ void MyDB_BPlusTreeReaderWriter ::discoverPages(int whichPage, vector<MyDB_PageR
   else
   // else we need a dfs, compare the page's child, until we reach the leaf
   {
-    // fortunately we got the alt iter
     MyDB_RecordIteratorAltPtr iter = page.getIteratorAlt();
 
     MyDB_INRecordPtr helper = getINRecord();
@@ -66,14 +65,17 @@ void MyDB_BPlusTreeReaderWriter ::discoverPages(int whichPage, vector<MyDB_PageR
       iter->getCurrent(helper);
 
       if (comparators[0]())
+      // skip the low, low is guaranteed to skip, but high is not, because of range
       {
         continue;
       }
 
+      // do for all subdirectory
       discoverPages(helper->getPtr(), list, low, high);
 
       if (comparators[1]())
-      // due to inclusive, high check is at the end of the loop
+      // high check is at the end, if it fails we still have already checked all the subdirectory
+      // now we can really stop
       {
         break;
       }
