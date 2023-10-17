@@ -9,35 +9,44 @@
 ** unless you have completed A2!                   **
 ****************************************************/
 
-
 #ifndef PAGE_REC_ITER_C
 #define PAGE_REC_ITER_C
 
 #include "MyDB_PageRecIterator.h"
+#include "MyDB_PageReaderWriter.h"
 #include "MyDB_PageType.h"
+#include <iostream>
 
-#define NUM_BYTES_USED *((size_t *) (((char *) myPage->getBytes ()) + sizeof (size_t)))
-
-void MyDB_PageRecIterator :: getNext () {
-	void *pos = bytesConsumed + (char *) myPage->getBytes ();
- 	void *nextPos = myRec->fromBinary (pos);
-	bytesConsumed += ((char *) nextPos) - ((char *) pos);	
+void MyDB_PageRecIterator ::getNext()
+{
+	if (this->hasNext())
+	{
+		PageMeta *pageHeader = castPageHeader(myPage);
+		// do the pointer arrithmetic directly, no need to deref
+		void *pos = (void *)(pageHeader->recs + bytesConsumed - sizeof(PageMeta));
+		myRec->fromBinary(pos);
+		bytesConsumed += myRec->getBinarySize();
+	}
 }
 
-void *MyDB_PageRecIterator :: getCurrentPointer () {
-	return bytesConsumed + (char *) myPage->getBytes ();
+void *MyDB_PageRecIterator ::getCurrentPointer()
+{
+	return bytesConsumed + (char *)myPage->getBytes();
 }
 
-bool MyDB_PageRecIterator :: hasNext () {
-	return bytesConsumed != NUM_BYTES_USED;
+bool MyDB_PageRecIterator ::hasNext()
+{
+	PageMeta *pageHeader = castPageHeader(myPage);
+	return (bytesConsumed < pageHeader->numBytesUsed + sizeof(PageMeta));
 }
 
-MyDB_PageRecIterator :: MyDB_PageRecIterator (MyDB_PageHandle myPageIn, MyDB_RecordPtr myRecIn) {
-	bytesConsumed = sizeof (size_t) * 2;
+MyDB_PageRecIterator ::MyDB_PageRecIterator(MyDB_PageHandle myPageIn, MyDB_RecordPtr myRecIn)
+{
+	bytesConsumed = sizeof(PageMeta);
 	myPage = myPageIn;
 	myRec = myRecIn;
 }
 
-MyDB_PageRecIterator :: ~MyDB_PageRecIterator () {}
+MyDB_PageRecIterator ::~MyDB_PageRecIterator() {}
 
 #endif
