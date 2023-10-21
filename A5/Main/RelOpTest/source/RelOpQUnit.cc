@@ -95,7 +95,7 @@ int main()
 		while (myIter->advance())
 		{
 			myIter->getCurrent(temp);
-			cout << temp << "\n";
+			// cout << temp << "\n";
 		}
 
 		// now, we count the total number of records
@@ -123,6 +123,7 @@ int main()
 			cout << temp << "\n";
 		}
 	}
+	return 0;
 
 	{
 		// get the output schema and table
@@ -151,7 +152,7 @@ int main()
 			myIter->getCurrent(temp);
 			cout << temp << "\n";
 		}
-
+		///////////////////////////////
 		// now, we count the total number of records
 		vector<pair<MyDB_AggType, string>> aggsToCompute;
 		aggsToCompute.push_back(make_pair(MyDB_AggType ::cnt, "int[0]"));
@@ -610,6 +611,7 @@ int main()
 		while (myIter->advance())
 		{
 			myIter->getCurrent(temp);
+			cout << "getting" << endl;
 			cout << temp << "\n";
 		}
 	}
