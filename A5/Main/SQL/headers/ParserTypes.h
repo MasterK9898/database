@@ -19,83 +19,86 @@ using namespace std;
 /*************************************************/
 
 // structure that encapsulates a parsed computation that returns a value
-struct Value {
+struct Value
+{
 
 private:
-
-        // this points to the expression tree that computes this value
-        ExprTreePtr myVal;
+	// this points to the expression tree that computes this value
+	ExprTreePtr myVal;
 
 public:
-        ~Value () {}
+	~Value() {}
 
-        Value (ExprTreePtr useMe) {
-                myVal = useMe;
-        }
+	Value(ExprTreePtr useMe)
+	{
+		myVal = useMe;
+	}
 
-        Value () {
-                myVal = nullptr;
-        }
-	
+	Value()
+	{
+		myVal = nullptr;
+	}
+
 	friend struct CNF;
 	friend struct ValueList;
 	friend struct SFWQuery;
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
 
 // structure that encapsulates a parsed CNF computation
-struct CNF {
+struct CNF
+{
 
 private:
-
-        // this points to the expression tree that computes this value
-        vector <ExprTreePtr> disjunctions;
+	// this points to the expression tree that computes this value
+	vector<ExprTreePtr> disjunctions;
 
 public:
-        ~CNF () {}
+	~CNF() {}
 
-        CNF (struct Value *useMe) {
-              	disjunctions.push_back (useMe->myVal); 
-        }
+	CNF(struct Value *useMe)
+	{
+		disjunctions.push_back(useMe->myVal);
+	}
 
-        CNF () {}
+	CNF() {}
 
 	friend struct SFWQuery;
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
 
 // structure that encapsulates a parsed list of value computations
-struct ValueList {
+struct ValueList
+{
 
 private:
-
-        // this points to the expression tree that computes this value
-        vector <ExprTreePtr> valuesToCompute;
+	// this points to the expression tree that computes this value
+	vector<ExprTreePtr> valuesToCompute;
 
 public:
-        ~ValueList () {}
+	~ValueList() {}
 
-        ValueList (struct Value *useMe) {
-              	valuesToCompute.push_back (useMe->myVal); 
-        }
+	ValueList(struct Value *useMe)
+	{
+		valuesToCompute.push_back(useMe->myVal);
+	}
 
-        ValueList () {}
+	ValueList() {}
 
 	friend struct SFWQuery;
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
 
-
 // structure to encapsulate a create table
-struct CreateTable {
+struct CreateTable
+{
 
 private:
-
 	// the name of the table to create
 	string tableName;
 
 	// the list of atts to create... the string is the att name
-	vector <pair <string, MyDB_AttTypePtr>> attsToCreate;
+	vector<pair<string, MyDB_AttTypePtr>> attsToCreate;
 
 	// true if we create a B+-Tree
 	bool isBPlusTree;
@@ -104,164 +107,181 @@ private:
 	string sortAtt;
 
 public:
-	string addToCatalog (string storageDir, MyDB_CatalogPtr addToMe) {
+	string addToCatalog(string storageDir, MyDB_CatalogPtr addToMe)
+	{
 
 		// make the schema
-		MyDB_SchemaPtr mySchema = make_shared <MyDB_Schema>();
-		for (auto a : attsToCreate) {
-			mySchema->appendAtt (a);
+		MyDB_SchemaPtr mySchema = make_shared<MyDB_Schema>();
+		for (auto a : attsToCreate)
+		{
+			mySchema->appendAtt(a);
 		}
 
 		// now, make the table
 		MyDB_TablePtr myTable;
 
 		// just a regular file
-		if (!isBPlusTree) {
-			myTable =  make_shared <MyDB_Table> (tableName, 
-				storageDir + "/" + tableName + ".bin", mySchema);	
+		if (!isBPlusTree)
+		{
+			myTable = make_shared<MyDB_Table>(tableName,
+																				storageDir + "/" + tableName + ".bin", mySchema);
 
-		// creating a B+-Tree
-		} else {
-			
+			// creating a B+-Tree
+		}
+		else
+		{
+
 			// make sure that we have the attribute
-			if (mySchema->getAttByName (sortAtt).first == -1) {
+			if (mySchema->getAttByName(sortAtt).first == -1)
+			{
 				cout << "B+-Tree not created.\n";
 				return "nothing";
 			}
-			myTable =  make_shared <MyDB_Table> (tableName, 
-				storageDir + "/" + tableName + ".bin", mySchema, "bplustree", sortAtt);	
+			myTable = make_shared<MyDB_Table>(tableName,
+																				storageDir + "/" + tableName + ".bin", mySchema, "bplustree", sortAtt);
 		}
 
 		// and add to the catalog
-		myTable->putInCatalog (addToMe);
+		myTable->putInCatalog(addToMe);
 
 		return tableName;
 	}
 
-	CreateTable () {}
+	CreateTable() {}
 
-	CreateTable (string tableNameIn, vector <pair <string, MyDB_AttTypePtr>> atts) {
+	CreateTable(string tableNameIn, vector<pair<string, MyDB_AttTypePtr>> atts)
+	{
 		tableName = tableNameIn;
 		attsToCreate = atts;
 		isBPlusTree = false;
 	}
 
-	CreateTable (string tableNameIn, vector <pair <string, MyDB_AttTypePtr>> atts, string sortAttIn) {
+	CreateTable(string tableNameIn, vector<pair<string, MyDB_AttTypePtr>> atts, string sortAttIn)
+	{
 		tableName = tableNameIn;
 		attsToCreate = atts;
 		isBPlusTree = true;
 		sortAtt = sortAttIn;
 	}
-	
-	~CreateTable () {}
 
-	#include "FriendDecls.h"
+	~CreateTable() {}
+
+#include "FriendDecls.h"
 };
 
 // structure that stores a list of attributes
-struct AttList {
+struct AttList
+{
 
 private:
-
 	// the list of attributes
-	vector <pair <string, MyDB_AttTypePtr>> atts;
+	vector<pair<string, MyDB_AttTypePtr>> atts;
 
 public:
-	AttList (string attName, MyDB_AttTypePtr whichType) {
-		atts.push_back (make_pair (attName, whichType));
+	AttList(string attName, MyDB_AttTypePtr whichType)
+	{
+		atts.push_back(make_pair(attName, whichType));
 	}
 
-	~AttList () {}
+	~AttList() {}
 
 	friend struct SFWQuery;
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
 
-struct FromList {
+struct FromList
+{
 
 private:
-
 	// the list of tables and aliases
-	vector <pair <string, string>> aliases;
+	vector<pair<string, string>> aliases;
 
 public:
-	FromList (string tableName, string aliasName) {
-		aliases.push_back (make_pair (tableName, aliasName));
+	FromList(string tableName, string aliasName)
+	{
+		aliases.push_back(make_pair(tableName, aliasName));
 	}
 
-	FromList () {}
+	FromList() {}
 
-	~FromList () {}
-	
+	~FromList() {}
+
 	friend struct SFWQuery;
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
-
 
 // structure that stores an entire SFW query
-struct SFWQuery {
+struct SFWQuery
+{
 
 private:
-
 	// the various parts of the SQL query
-	vector <ExprTreePtr> valuesToSelect;
-	vector <pair <string, string>> tablesToProcess;
-	vector <ExprTreePtr> allDisjunctions;
-	vector <ExprTreePtr> groupingClauses;
+	vector<ExprTreePtr> valuesToSelect;
+	vector<pair<string, string>> tablesToProcess;
+	vector<ExprTreePtr> allDisjunctions;
+	vector<ExprTreePtr> groupingClauses;
 
 public:
-	SFWQuery () {}
+	SFWQuery() {}
 
-	SFWQuery (struct ValueList *selectClause, struct FromList *fromClause, 
-		struct CNF *cnf, struct ValueList *grouping) {
+	SFWQuery(struct ValueList *selectClause, struct FromList *fromClause,
+					 struct CNF *cnf, struct ValueList *grouping)
+	{
 		valuesToSelect = selectClause->valuesToCompute;
 		tablesToProcess = fromClause->aliases;
 		allDisjunctions = cnf->disjunctions;
 		groupingClauses = grouping->valuesToCompute;
 	}
 
-	SFWQuery (struct ValueList *selectClause, struct FromList *fromClause, 
-		struct CNF *cnf) {
+	SFWQuery(struct ValueList *selectClause, struct FromList *fromClause,
+					 struct CNF *cnf)
+	{
 		valuesToSelect = selectClause->valuesToCompute;
 		tablesToProcess = fromClause->aliases;
 		allDisjunctions = cnf->disjunctions;
 	}
 
-	SFWQuery (struct ValueList *selectClause, struct FromList *fromClause) {
+	SFWQuery(struct ValueList *selectClause, struct FromList *fromClause)
+	{
 		valuesToSelect = selectClause->valuesToCompute;
 		tablesToProcess = fromClause->aliases;
-		allDisjunctions.push_back (make_shared <BoolLiteral> (true));
+		allDisjunctions.push_back(make_shared<BoolLiteral>(true));
 	}
-	
-	~SFWQuery () {}
 
-	void print () {
+	~SFWQuery() {}
+
+	void print()
+	{
 		cout << "Selecting the following:\n";
-		for (auto a : valuesToSelect) {
-			cout << "\t" << a->toString () << "\n";
+		for (auto a : valuesToSelect)
+		{
+			cout << "\t" << a->toString() << "\n";
 		}
 		cout << "From the following:\n";
-		for (auto a : tablesToProcess) {
+		for (auto a : tablesToProcess)
+		{
 			cout << "\t" << a.first << " AS " << a.second << "\n";
 		}
 		cout << "Where the following are true:\n";
-		for (auto a : allDisjunctions) {
-			cout << "\t" << a->toString () << "\n";
+		for (auto a : allDisjunctions)
+		{
+			cout << "\t" << a->toString() << "\n";
 		}
 		cout << "Group using:\n";
-		for (auto a : groupingClauses) {
-			cout << "\t" << a->toString () << "\n";
+		for (auto a : groupingClauses)
+		{
+			cout << "\t" << a->toString() << "\n";
 		}
 	}
 
-	#include "FriendDecls.h"
+#include "FriendDecls.h"
 };
 
 // structure that sores an entire SQL statement
-struct SQLStatement {
+struct SQLStatement
+{
 
 private:
-
 	// in case we are a SFW query
 	SFWQuery myQuery;
 	bool isQuery;
@@ -271,35 +291,41 @@ private:
 	bool isCreate;
 
 public:
-	SQLStatement (struct SFWQuery* useMe) {
+	SQLStatement(struct SFWQuery *useMe)
+	{
 		myQuery = *useMe;
 		isQuery = true;
 		isCreate = false;
 	}
 
-	SQLStatement (struct CreateTable *useMe) {
+	SQLStatement(struct CreateTable *useMe)
+	{
 		myTableToCreate = *useMe;
 		isQuery = false;
 		isCreate = true;
 	}
 
-	bool isCreateTable () {
+	bool isCreateTable()
+	{
 		return isCreate;
 	}
 
-	bool isSFWQuery () {
+	bool isSFWQuery()
+	{
 		return isQuery;
 	}
 
-	string addToCatalog (string storageDir, MyDB_CatalogPtr addToMe) {
-		return myTableToCreate.addToCatalog (storageDir, addToMe);
-	}		
-	
-	void printSFWQuery () {
-		myQuery.print ();
+	string addToCatalog(string storageDir, MyDB_CatalogPtr addToMe)
+	{
+		return myTableToCreate.addToCatalog(storageDir, addToMe);
 	}
 
-	#include "FriendDecls.h"
+	void printSFWQuery()
+	{
+		myQuery.print();
+	}
+
+#include "FriendDecls.h"
 };
 
 #endif

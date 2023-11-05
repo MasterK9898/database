@@ -9,353 +9,384 @@
 // create a smart pointer for database tables
 using namespace std;
 class ExprTree;
-typedef shared_ptr <ExprTree> ExprTreePtr;
+typedef shared_ptr<ExprTree> ExprTreePtr;
 
 // this class encapsules a parsed SQL expression (such as "this.that > 34.5 AND 4 = 5")
 
 // class ExprTree is a pure virtual class... the various classes that implement it are below
-class ExprTree {
+class ExprTree
+{
 
 public:
-	virtual string toString () = 0;
-	virtual ~ExprTree () {}
+	virtual string toString() = 0;
+	virtual ~ExprTree() {}
 };
 
-class BoolLiteral : public ExprTree {
+class BoolLiteral : public ExprTree
+{
 
 private:
 	bool myVal;
+
 public:
-	
-	BoolLiteral (bool fromMe) {
+	BoolLiteral(bool fromMe)
+	{
 		myVal = fromMe;
 	}
 
-	string toString () {
-		if (myVal) {
+	string toString()
+	{
+		if (myVal)
+		{
 			return "bool[true]";
-		} else {
+		}
+		else
+		{
 			return "bool[false]";
 		}
-	}	
+	}
 };
 
-class DoubleLiteral : public ExprTree {
+class DoubleLiteral : public ExprTree
+{
 
 private:
 	double myVal;
-public:
 
-	DoubleLiteral (double fromMe) {
+public:
+	DoubleLiteral(double fromMe)
+	{
 		myVal = fromMe;
 	}
 
-	string toString () {
-		return "double[" + to_string (myVal) + "]";
-	}	
+	string toString()
+	{
+		return "double[" + to_string(myVal) + "]";
+	}
 
-	~DoubleLiteral () {}
+	~DoubleLiteral() {}
 };
 
 // this implement class ExprTree
-class IntLiteral : public ExprTree {
+class IntLiteral : public ExprTree
+{
 
 private:
 	int myVal;
-public:
 
-	IntLiteral (int fromMe) {
+public:
+	IntLiteral(int fromMe)
+	{
 		myVal = fromMe;
 	}
 
-	string toString () {
-		return "int[" + to_string (myVal) + "]";
+	string toString()
+	{
+		return "int[" + to_string(myVal) + "]";
 	}
 
-	~IntLiteral () {}
+	~IntLiteral() {}
 };
 
-class StringLiteral : public ExprTree {
+class StringLiteral : public ExprTree
+{
 
 private:
 	string myVal;
-public:
 
-	StringLiteral (char *fromMe) {
-		fromMe[strlen (fromMe) - 1] = 0;
-		myVal = string (fromMe + 1);
+public:
+	StringLiteral(char *fromMe)
+	{
+		fromMe[strlen(fromMe) - 1] = 0;
+		myVal = string(fromMe + 1);
 	}
 
-	string toString () {
+	string toString()
+	{
 		return "string[" + myVal + "]";
 	}
 
-	~StringLiteral () {}
+	~StringLiteral() {}
 };
 
-class Identifier : public ExprTree {
+class Identifier : public ExprTree
+{
 
 private:
 	string tableName;
 	string attName;
-public:
 
-	Identifier (char *tableNameIn, char *attNameIn) {
-		tableName = string (tableNameIn);
-		attName = string (attNameIn);
+public:
+	Identifier(char *tableNameIn, char *attNameIn)
+	{
+		tableName = string(tableNameIn);
+		attName = string(attNameIn);
 	}
 
-	string toString () {
+	string toString()
+	{
 		return "[" + tableName + "_" + attName + "]";
-	}	
+	}
 
-	~Identifier () {}
+	~Identifier() {}
 };
 
-class MinusOp : public ExprTree {
+class MinusOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	MinusOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	MinusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "- (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "- (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~MinusOp () {}
+	~MinusOp() {}
 };
 
-class PlusOp : public ExprTree {
+class PlusOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	PlusOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	PlusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "+ (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "+ (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~PlusOp () {}
+	~PlusOp() {}
 };
 
-class TimesOp : public ExprTree {
+class TimesOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	TimesOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	TimesOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "* (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "* (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~TimesOp () {}
+	~TimesOp() {}
 };
 
-class DivideOp : public ExprTree {
+class DivideOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	DivideOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	DivideOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "/ (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "/ (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~DivideOp () {}
+	~DivideOp() {}
 };
 
-class GtOp : public ExprTree {
+class GtOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	GtOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	GtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "> (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "> (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~GtOp () {}
+	~GtOp() {}
 };
 
-class LtOp : public ExprTree {
+class LtOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	LtOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	LtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "< (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "< (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~LtOp () {}
+	~LtOp() {}
 };
 
-class NeqOp : public ExprTree {
+class NeqOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	NeqOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	NeqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "!= (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "!= (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~NeqOp () {}
+	~NeqOp() {}
 };
 
-class OrOp : public ExprTree {
+class OrOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	OrOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	OrOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "|| (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "|| (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~OrOp () {}
+	~OrOp() {}
 };
 
-class EqOp : public ExprTree {
+class EqOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
-	
-public:
 
-	EqOp (ExprTreePtr lhsIn, ExprTreePtr rhsIn) {
+public:
+	EqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	{
 		lhs = lhsIn;
 		rhs = rhsIn;
 	}
 
-	string toString () {
-		return "== (" + lhs->toString () + ", " + rhs->toString () + ")";
-	}	
+	string toString()
+	{
+		return "== (" + lhs->toString() + ", " + rhs->toString() + ")";
+	}
 
-	~EqOp () {}
+	~EqOp() {}
 };
 
-class NotOp : public ExprTree {
+class NotOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr child;
-	
-public:
 
-	NotOp (ExprTreePtr childIn) {
+public:
+	NotOp(ExprTreePtr childIn)
+	{
 		child = childIn;
 	}
 
-	string toString () {
-		return "!(" + child->toString () + ")";
-	}	
+	string toString()
+	{
+		return "!(" + child->toString() + ")";
+	}
 
-	~NotOp () {}
+	~NotOp() {}
 };
 
-class SumOp : public ExprTree {
+class SumOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr child;
-	
-public:
 
-	SumOp (ExprTreePtr childIn) {
+public:
+	SumOp(ExprTreePtr childIn)
+	{
 		child = childIn;
 	}
 
-	string toString () {
-		return "sum(" + child->toString () + ")";
-	}	
+	string toString()
+	{
+		return "sum(" + child->toString() + ")";
+	}
 
-	~SumOp () {}
+	~SumOp() {}
 };
 
-class AvgOp : public ExprTree {
+class AvgOp : public ExprTree
+{
 
 private:
-
 	ExprTreePtr child;
-	
-public:
 
-	AvgOp (ExprTreePtr childIn) {
+public:
+	AvgOp(ExprTreePtr childIn)
+	{
 		child = childIn;
 	}
 
-	string toString () {
-		return "avg(" + child->toString () + ")";
-	}	
+	string toString()
+	{
+		return "avg(" + child->toString() + ")";
+	}
 
-	~AvgOp () {}
+	~AvgOp() {}
 };
 
 #endif
