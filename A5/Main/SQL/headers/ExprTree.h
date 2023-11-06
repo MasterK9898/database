@@ -76,7 +76,7 @@ public:
 
 	bool isIdentifier()
 	{
-		return isIdentifier;
+		return identifier;
 	}
 
 	// currently not needed
