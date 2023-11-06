@@ -282,16 +282,6 @@ public:
 
 	void check(MyDB_CatalogPtr myCatalog)
 	{
-		// basically we need to the for brothers
-
-		// SELECT
-		for (auto expr : valuesToSelect)
-		{
-			if (!expr->check(myCatalog, tablesToProcess))
-			{
-				return;
-			}
-		}
 
 		// beside from checking the validity, we also need to make sure that the grouping rules are followed
 		if (groupingClauses.size() > 0)
@@ -300,14 +290,13 @@ public:
 			// get all identifiers out
 			unordered_set<string> IdentifierSet;
 
-			// GROUP BY
 			for (auto expr : groupingClauses)
 			{
 				if (expr->isIdentifier())
 				{
 					IdentifierSet.insert(expr->toString());
 				}
-				// we can by the way check its validity...
+				// check GROUP BY (by the way)
 				if (!expr->check(myCatalog, tablesToProcess))
 				{
 					return;
@@ -316,37 +305,32 @@ public:
 
 			for (auto expr : valuesToSelect)
 			{
+				// can only contain grouped attributes
 				if (expr->isIdentifier() && IdentifierSet.find(expr->toString()) == IdentifierSet.end())
 				{
 					cout << "SELECT: " << expr->toString() << " not in grouping" << endl;
 					return;
 				}
+				// check SELECT (by the way)
+				if (!expr->check(myCatalog, tablesToProcess))
+				{
+					return;
+				}
 			}
 		}
-		// else
-		// // if there is not grouping, then the select clause can only contain attributes or aggregation
-		// {
-		// 	bool hasAttribute = false;
-		// 	bool hasAggregation = false;
-
-		// 	for (auto expr : valuesToSelect)
-		// 	{
-		// 		if (expr->isAggregate())
-		// 		{
-		// 			hasAggregation = true;
-		// 		}
-		// 		else
-		// 		{
-		// 			hasAttribute = true;
-		// 		}
-
-		// 		if (hasAttribute && hasAggregation)
-		// 		{
-		// 			cout << "SELECT: " << expr->toString() << " has both attribute and aggregation without grouping" << endl;
-		// 			return;
-		// 		}
-		// 	}
-		// }
+		else
+		// if there is not grouping, then the select clause can only contain attributes or aggregation?
+		// there's no grouping, we only need to check select
+		{
+			// check SELECT
+			for (auto expr : valuesToSelect)
+			{
+				if (!expr->check(myCatalog, tablesToProcess))
+				{
+					return;
+				}
+			}
+		}
 
 		vector<string> tableList;
 		myCatalog->getStringList("tables", tableList);
@@ -354,12 +338,12 @@ public:
 		// iterating thoguh each time is just tooooooooo silly, let's use a hash to speed it up
 		unordered_set<string> tableSet(tableList.begin(), tableList.end());
 
-		// FROM
 		for (auto pair : tablesToProcess)
 		{
 			// c++ 11 don't have decomposition
 			auto name = pair.first;
 
+			// check FROM
 			if (tableSet.find(name) != tableSet.end())
 			{
 				cout << "FROM: table " + name + " not found" << endl;
@@ -367,9 +351,9 @@ public:
 			}
 		}
 
-		// WHERE
 		for (auto expr : allDisjunctions)
 		{
+			// check WHERE
 			if (!expr->check(myCatalog, tablesToProcess))
 			{
 				return;

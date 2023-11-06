@@ -76,18 +76,23 @@ public:
 
 	bool isIdentifier()
 	{
-		return false;
+		return isIdentifier;
 	}
 
-	bool isAggregate()
-	{
-		return false;
-	}
+	// currently not needed
+	// bool isAggregate()
+	// {
+	// 	return isAggregate;
+	// }
 
 protected:
 	ExprType type;
 	// the name of this current exprssion
 	string name;
+
+	bool identifier;
+
+	// bool isAggregate
 };
 
 template <typename T>
@@ -201,16 +206,12 @@ public:
 		// no idea at the beginning
 		type = TYPE_UNDEFINED;
 		name = "IDENTIFIER";
+		identifier = true;
 	}
 
 	string toString()
 	{
 		return "[" + tableName + "_" + attName + "]";
-	}
-
-	bool isIdentifier()
-	{
-		return true;
 	}
 
 	~Identifier() {}
@@ -596,11 +597,6 @@ public:
 		return "sum(" + child->toString() + ")";
 	}
 
-	bool isAggregate()
-	{
-		return true;
-	}
-
 	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		return UnaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
@@ -620,11 +616,6 @@ public:
 	string toString()
 	{
 		return "avg(" + child->toString() + ")";
-	}
-
-	bool isAggregate()
-	{
-		return true;
 	}
 
 	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
