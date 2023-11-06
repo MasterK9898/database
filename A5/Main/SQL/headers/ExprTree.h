@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+using namespace std;
+
 enum ExprType
 // inspired from js types
 {
@@ -17,7 +19,7 @@ enum ExprType
 };
 
 // get the name for logging use
-inline string getTypeName(ExprType type)
+inline string printType(ExprType type)
 {
 	switch (type)
 	{
@@ -33,12 +35,12 @@ inline string getTypeName(ExprType type)
 	}
 }
 
-inline string getTypesName(vector<ExprType> types)
+inline string printTypes(vector<ExprType> types)
 {
 	string res = "";
 	for (int i = 0; i < types.size(); i++)
 	{
-		res += getTypeName(types[i]);
+		res += printType(types[i]);
 		if (i != types.size() - 1)
 		{
 			res += " or ";
@@ -271,7 +273,7 @@ protected:
 
 		if (typeLeft != typeRight)
 		{
-			cout << name << ": lhs " << lhs->toString() << " and rhs " << rhs->toString() + " are not the same type" << endl;
+			cout << name << ": lhs " << lhs->toString() << " (" << printType(typeLeft) << ") and rhs " << rhs->toString() << " (" << printType(typeRight) + ") are not the same type" << endl;
 			return false;
 		}
 
@@ -289,7 +291,7 @@ protected:
 			}
 		}
 
-		cout << name << ": lhs " << lhs->toString() << " is not " << getTypesName(types) << endl;
+		cout << name << ": lhs " << lhs->toString() << " (" << printType(typeLeft) << ") is not " << printTypes(types) << endl;
 
 		return false;
 	}
@@ -334,10 +336,15 @@ public:
 
 	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		// assign the left type to the plus type
-		type = lhs->getType();
 		// then we check the query
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING});
+		if (!BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING}))
+		{
+			return false;
+		};
+
+		// the type is derrived after the check, so assign it at this place
+		type = lhs->getType();
+		return true;
 	}
 };
 
@@ -410,9 +417,9 @@ public:
 		return "> (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	// can we do a greater than for string or TYPE_boolean?
 	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
+		// are we allowed for boolean or string compare?
 		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
@@ -432,9 +439,9 @@ public:
 		return "< (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	// can we do a less than for string or TYPE_boolean?
 	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
+		// are we allowed for boolean or string compare?
 		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
@@ -538,7 +545,7 @@ protected:
 			}
 		}
 
-		cout << name << ": child " << child->toString() << " is not " << getTypesName(types) << endl;
+		cout << name << ": child " << child->toString() << " (" << printType(typeChild) << ") is not " << printTypes(types) << endl;
 
 		return false;
 	}
