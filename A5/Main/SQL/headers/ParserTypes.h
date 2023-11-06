@@ -344,7 +344,7 @@ public:
 			auto name = pair.first;
 
 			// check FROM
-			if (tableSet.find(name) != tableSet.end())
+			if (tableSet.find(name) == tableSet.end())
 			{
 				cout << "FROM: table " + name + " not found" << endl;
 				return;
