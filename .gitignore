@@ -4,6 +4,7 @@
 .vscode
 **/Build/**
 !**/Build/**/SConstruct
+!**/Build/**/*.py
 !**/Build/**/*.tbl
 !**/Build/**/*.sql
 **/A0/**
