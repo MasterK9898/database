@@ -95,6 +95,24 @@ protected:
 	// bool isAggregate
 };
 
+// print out the expression list for logging
+inline string printExprs(vector<pair<string, ExprTreePtr>> exprs)
+{
+	string res = "";
+	for (int i = 0; i < exprs.size(); i++)
+	{
+		auto expr = exprs[i].second;
+		auto name = exprs[i].first;
+		res += name + " {{ " + expr->toString() + " (" + printType(expr->getType()) + ") }}";
+		if (i != exprs.size() - 1)
+		{
+			res += " and ";
+		}
+	}
+	res += " ";
+	return res;
+}
+
 template <typename T>
 class Literal : public ExprTree
 {
@@ -229,14 +247,14 @@ public:
 		}
 		if (tableKey == "")
 		{
-			cout << "TYPE_IDENTIFIER: Table Name " << tableName << " is not found" << endl;
+			cout << name << ": Table {{ " << tableName << " }} is not found" << endl;
 			return false;
 		}
 
 		string stringType;
 		if (!myCatalog->getString(tableKey + "." + attName + ".type", stringType))
 		{
-			cout << "TYPE_IDENTIFIER: Attribute Name " << attName << " is not found" << endl;
+			cout << name << ": Attribute {{ " << attName << " }} is not found" << endl;
 			return false;
 		};
 
@@ -262,6 +280,10 @@ protected:
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
 
+	// name for logging use
+	const string OP_LEFT = "Left";
+	const string OP_RIGHT = "Right";
+
 	BinaryOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
 	{
 		lhs = lhsIn;
@@ -283,14 +305,8 @@ protected:
 
 		if (typeLeft != typeRight)
 		{
-			cout << name << ": lhs " << lhs->toString() << " (" << printType(typeLeft) << ") and rhs " << rhs->toString() << " (" << printType(typeRight) + ") are not the same type" << endl;
+			cout << name << ": " << printExprs({{OP_LEFT, lhs}, {OP_RIGHT, rhs}}) << " are not the same type" << endl;
 			return false;
-		}
-
-		// do a easy short circuit
-		if (types.size() == 0)
-		{
-			return true;
 		}
 
 		for (auto type : types)
@@ -301,7 +317,7 @@ protected:
 			}
 		}
 
-		cout << name << ": lhs " << lhs->toString() << " (" << printType(typeLeft) << ") is not " << printTypes(types) << endl;
+		cout << name << ": " << printExprs({{OP_LEFT, lhs}}) << "is not " << printTypes(types) << endl;
 
 		return false;
 	}
@@ -404,7 +420,7 @@ public:
 		// need to check for zero
 		if (rhs->toString().compare("0") == 0)
 		{
-			cout << name << ": rhs " << rhs->toString() << " is 0" << endl;
+			cout << name << ": " << printExprs({{OP_RIGHT, rhs}}) << "is 0" << endl;
 			return false;
 		}
 
@@ -523,6 +539,7 @@ class UnaryOp : public ExprTree
 {
 protected:
 	ExprTreePtr child;
+	const string OP_UNARY = "Operand";
 
 	UnaryOp(ExprTreePtr childIn)
 	{
@@ -541,12 +558,6 @@ protected:
 
 		ExprType typeChild = child->getType();
 
-		// do a easy short circuit
-		if (types.size() == 0)
-		{
-			return true;
-		}
-
 		for (auto type : types)
 		{
 			if (type == typeChild)
@@ -555,7 +566,7 @@ protected:
 			}
 		}
 
-		cout << name << ": child " << child->toString() << " (" << printType(typeChild) << ") is not " << printTypes(types) << endl;
+		cout << name << ": " << printExprs({{OP_UNARY, child}}) << "is not " << printTypes(types) << endl;
 
 		return false;
 	}

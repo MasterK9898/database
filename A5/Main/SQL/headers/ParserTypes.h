@@ -308,7 +308,7 @@ public:
 				// can only contain grouped attributes
 				if (expr->isIdentifier() && IdentifierSet.find(expr->toString()) == IdentifierSet.end())
 				{
-					cout << "SELECT: " << expr->toString() << " not in grouping" << endl;
+					cout << "SELECT: {{ " << expr->toString() << " }} is not in grouping" << endl;
 					return;
 				}
 				// check SELECT (by the way)
@@ -346,7 +346,7 @@ public:
 			// check FROM
 			if (tableSet.find(name) == tableSet.end())
 			{
-				cout << "FROM: table " + name + " not found" << endl;
+				cout << "FROM: table {{ " + name + " }} is not found" << endl;
 				return;
 			}
 		}
@@ -360,7 +360,7 @@ public:
 			}
 		}
 
-		cout << "VALID" << endl;
+		cout << "VALID QUERY" << endl;
 	}
 
 #include "FriendDecls.h"
