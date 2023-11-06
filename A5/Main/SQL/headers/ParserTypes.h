@@ -10,6 +10,8 @@
 #include "MyDB_Table.h"
 #include <string>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
 
@@ -274,6 +276,77 @@ public:
 		}
 	}
 
+	void checkQuery(MyDB_CatalogPtr myCatalog)
+	{
+		vector<string> tablesList;
+		myCatalog->getStringList("tables", tablesList);
+		// first we need to found if all the tables exist
+		for (auto pair : tablesToProcess)
+		{
+			bool found = false;
+			for (auto tableName : tablesList)
+			{
+				if (tableName.compare(pair.first) == 0)
+				{
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+			{
+				cout << "Table " + pair.first + " cannot be found" << endl;
+				return;
+			}
+		}
+
+		// second we need the grouping attributes to be in the select clause
+		for (auto value : valuesToSelect)
+		{
+			if (value->isIdentifier())
+			{
+				bool found = false;
+				for (auto clause : groupingClauses)
+				{
+					if (clause->isIdentifier() && value->toString() == clause->toString())
+					{
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+				{
+					cout << "Selected attribute " << value->toString() << " is not in grouping" << endl;
+					return;
+				}
+			}
+		}
+
+		// third we check all the querys
+		for (auto expr : valuesToSelect)
+		{
+			if (!expr->checkQuery(myCatalog, tablesToProcess))
+			{
+				return;
+			}
+		}
+		for (auto expr : allDisjunctions)
+		{
+			if (!expr->checkQuery(myCatalog, tablesToProcess))
+			{
+				return;
+			}
+		}
+		for (auto expr : groupingClauses)
+		{
+			if (!expr->checkQuery(myCatalog, tablesToProcess))
+			{
+				return;
+			}
+		}
+
+		cout << "The query is valid." << endl;
+	}
+
 #include "FriendDecls.h"
 };
 
@@ -323,6 +396,11 @@ public:
 	void printSFWQuery()
 	{
 		myQuery.print();
+	}
+
+	void checkQuery(MyDB_CatalogPtr myCatalog)
+	{
+		myQuery.checkQuery(myCatalog);
 	}
 
 #include "FriendDecls.h"

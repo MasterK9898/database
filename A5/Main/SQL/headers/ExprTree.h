@@ -3,8 +3,49 @@
 #define SQL_EXPRESSIONS
 
 #include "MyDB_AttType.h"
+#include "MyDB_Catalog.h"
 #include <string>
 #include <vector>
+
+enum ExprType
+// inspired from js types
+{
+	TYPE_UNDEFINED,
+	TYPE_BOOLEAN,
+	TYPE_NUMBER,
+	TYPE_STRING,
+};
+
+// get the name for logging use
+inline string getTypeName(ExprType type)
+{
+	switch (type)
+	{
+	case TYPE_BOOLEAN:
+		return "BOOLEAN";
+	case TYPE_NUMBER:
+		return "NUMBER";
+	case TYPE_STRING:
+		return "STRING";
+	case TYPE_UNDEFINED:
+	default:
+		return "UNDEFINED";
+	}
+}
+
+inline string getTypesName(vector<ExprType> types)
+{
+	string res = "";
+	for (int i = 0; i < types.size(); i++)
+	{
+		res += getTypeName(types[i]);
+		if (i != types.size() - 1)
+		{
+			res += " or ";
+		}
+	}
+	return res;
+}
 
 // create a smart pointer for database tables
 using namespace std;
@@ -19,19 +60,55 @@ class ExprTree
 
 public:
 	virtual string toString() = 0;
-	virtual ~ExprTree() {}
+	virtual ~ExprTree(){};
+	virtual bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess) = 0;
+
+	virtual ExprType getType()
+	{
+		return type;
+	};
+
+	bool isIdentifier()
+	{
+		return false;
+	}
+
+protected:
+	ExprType type;
+	// the name of this current exprssion
+	string name;
 };
 
-class BoolLiteral : public ExprTree
+template <typename T>
+class Literal : public ExprTree
 {
+protected:
+	T myVal;
 
-private:
-	bool myVal;
-
-public:
-	BoolLiteral(bool fromMe)
+	Literal(T fromMe)
 	{
 		myVal = fromMe;
+	}
+
+	Literal() {}
+
+	~Literal() {}
+
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return true;
+	}
+};
+
+class BoolLiteral : public Literal<bool>
+{
+
+public:
+	BoolLiteral(bool fromMe) : Literal(fromMe)
+	{
+		// new knowledge: I cannot do initializer list to protected memeber
+		type = TYPE_BOOLEAN;
+		name = "BOOLEAN";
 	}
 
 	string toString()
@@ -47,66 +124,55 @@ public:
 	}
 };
 
-class DoubleLiteral : public ExprTree
+class DoubleLiteral : public Literal<double>
 {
 
-private:
-	double myVal;
-
 public:
-	DoubleLiteral(double fromMe)
+	DoubleLiteral(double fromMe) : Literal(fromMe)
 	{
-		myVal = fromMe;
+		type = TYPE_NUMBER;
+		name = "DOUBLE";
 	}
 
 	string toString()
 	{
 		return "double[" + to_string(myVal) + "]";
 	}
-
-	~DoubleLiteral() {}
 };
 
 // this implement class ExprTree
-class IntLiteral : public ExprTree
+class IntLiteral : public Literal<int>
 {
 
-private:
-	int myVal;
-
 public:
-	IntLiteral(int fromMe)
+	IntLiteral(int fromMe) : Literal(fromMe)
 	{
-		myVal = fromMe;
+		type = TYPE_NUMBER;
+		name = "INT";
 	}
 
 	string toString()
 	{
 		return "int[" + to_string(myVal) + "]";
 	}
-
-	~IntLiteral() {}
 };
 
-class StringLiteral : public ExprTree
+class StringLiteral : public Literal<string>
 {
-
-private:
-	string myVal;
 
 public:
 	StringLiteral(char *fromMe)
 	{
 		fromMe[strlen(fromMe) - 1] = 0;
 		myVal = string(fromMe + 1);
+		type = TYPE_STRING;
+		name = "STRING";
 	}
 
 	string toString()
 	{
 		return "string[" + myVal + "]";
 	}
-
-	~StringLiteral() {}
 };
 
 class Identifier : public ExprTree
@@ -121,6 +187,9 @@ public:
 	{
 		tableName = string(tableNameIn);
 		attName = string(attNameIn);
+		// no idea at the beginning
+		type = TYPE_UNDEFINED;
+		name = "IDENTIFIER";
 	}
 
 	string toString()
@@ -128,21 +197,112 @@ public:
 		return "[" + tableName + "_" + attName + "]";
 	}
 
+	bool isIdentifier()
+	{
+		return true;
+	}
+
 	~Identifier() {}
+
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		string tableKey = "";
+		for (auto pair : tablesToProcess)
+		{
+			if (pair.second == tableName)
+			{
+				tableKey = pair.first;
+				break;
+			}
+		}
+		if (tableKey == "")
+		{
+			cout << "TYPE_IDENTIFIER: Table Name " << tableName << " is not found" << endl;
+			return false;
+		}
+
+		string res;
+		if (!myCatalog->getString(tableKey + "." + attName + ".type", res))
+		{
+			cout << "TYPE_IDENTIFIER: Attribute Name " << attName << " is not found" << endl;
+			return false;
+		};
+
+		if (res == "int" || res == "double")
+		{
+			type = TYPE_NUMBER;
+		}
+		else if (res == "string")
+		{
+			type = TYPE_STRING;
+		}
+		else if (res == "bool")
+		{
+			type = TYPE_BOOLEAN;
+		}
+		return true;
+	}
 };
 
-class MinusOp : public ExprTree
+class BinaryOp : public ExprTree
 {
-
-private:
+protected:
 	ExprTreePtr lhs;
 	ExprTreePtr rhs;
 
-public:
-	MinusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	BinaryOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
 	{
 		lhs = lhsIn;
 		rhs = rhsIn;
+	}
+
+	~BinaryOp() {}
+
+	// the template method
+	bool checkQueryHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
+	{
+		if (!lhs->checkQuery(myCatalog, tablesToProcess) || !rhs->checkQuery(myCatalog, tablesToProcess))
+		{
+			return false;
+		}
+
+		ExprType typeLeft = lhs->getType();
+		ExprType typeRight = rhs->getType();
+
+		if (typeLeft != typeRight)
+		{
+			cout << name << ": lhs " << lhs->toString() << " and rhs " << rhs->toString() + " are not the same type" << endl;
+			return false;
+		}
+
+		// do a easy short circuit
+		if (types.size() == 0)
+		{
+			return true;
+		}
+
+		for (auto type : types)
+		{
+			if (type == typeLeft)
+			{
+				return true;
+			}
+		}
+
+		cout << name << ": lhs " << lhs->toString() << " is not " << getTypesName(types) << endl;
+
+		return false;
+	}
+};
+
+class MinusOp : public BinaryOp
+{
+
+public:
+	MinusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
+	{
+		type = TYPE_NUMBER;
+		name = "MINUS";
 	}
 
 	string toString()
@@ -150,21 +310,21 @@ public:
 		return "- (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~MinusOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
-class PlusOp : public ExprTree
+class PlusOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	PlusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	PlusOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		// string or TYPE_number, you just dont know
+		type = TYPE_UNDEFINED;
+		name = "PLUS";
 	}
 
 	string toString()
@@ -172,21 +332,23 @@ public:
 		return "+ (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~PlusOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		// assign the left type to the plus type
+		type = lhs->getType();
+		// then we check the query
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING});
+	}
 };
 
-class TimesOp : public ExprTree
+class TimesOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	TimesOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	TimesOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_NUMBER;
+		name = "TIMES";
 	}
 
 	string toString()
@@ -194,21 +356,20 @@ public:
 		return "* (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~TimesOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
-class DivideOp : public ExprTree
+class DivideOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	DivideOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	DivideOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_NUMBER;
+		name = "DIVIDE";
 	}
 
 	string toString()
@@ -216,21 +377,32 @@ public:
 		return "/ (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~DivideOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		if (!BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER}))
+		{
+			return false;
+		}
+
+		// need to check for zero
+		if (rhs->toString().compare("0") == 0)
+		{
+			cout << name << ": rhs " << rhs->toString() << " is 0" << endl;
+			return false;
+		}
+
+		return true;
+	}
 };
 
-class GtOp : public ExprTree
+class GtOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	GtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	GtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_BOOLEAN;
+		name = "GREATER";
 	}
 
 	string toString()
@@ -238,21 +410,21 @@ public:
 		return "> (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~GtOp() {}
+	// can we do a greater than for string or TYPE_boolean?
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
-class LtOp : public ExprTree
+class LtOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	LtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	LtOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_BOOLEAN;
+		name = "LESS";
 	}
 
 	string toString()
@@ -260,21 +432,21 @@ public:
 		return "< (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~LtOp() {}
+	// can we do a less than for string or TYPE_boolean?
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
-class NeqOp : public ExprTree
+class NeqOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	NeqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	NeqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_BOOLEAN;
+		name = "NOT EQUAL";
 	}
 
 	string toString()
@@ -282,21 +454,20 @@ public:
 		return "!= (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~NeqOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
+	}
 };
 
-class OrOp : public ExprTree
+class OrOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	OrOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	OrOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_BOOLEAN;
+		name = "OR";
 	}
 
 	string toString()
@@ -304,21 +475,20 @@ public:
 		return "|| (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~OrOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
+	}
 };
 
-class EqOp : public ExprTree
+class EqOp : public BinaryOp
 {
 
-private:
-	ExprTreePtr lhs;
-	ExprTreePtr rhs;
-
 public:
-	EqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn)
+	EqOp(ExprTreePtr lhsIn, ExprTreePtr rhsIn) : BinaryOp(lhsIn, rhsIn)
 	{
-		lhs = lhsIn;
-		rhs = rhsIn;
+		type = TYPE_BOOLEAN;
+		name = "EQUAL";
 	}
 
 	string toString()
@@ -326,19 +496,62 @@ public:
 		return "== (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	~EqOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
+	}
 };
 
-class NotOp : public ExprTree
+class UnaryOp : public ExprTree
 {
-
-private:
+protected:
 	ExprTreePtr child;
 
-public:
-	NotOp(ExprTreePtr childIn)
+	UnaryOp(ExprTreePtr childIn)
 	{
 		child = childIn;
+	}
+
+	~UnaryOp() {}
+
+	// the template method
+	bool checkQueryHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
+	{
+		if (!child->checkQuery(myCatalog, tablesToProcess))
+		{
+			return false;
+		}
+
+		ExprType typeChild = child->getType();
+
+		// do a easy short circuit
+		if (types.size() == 0)
+		{
+			return true;
+		}
+
+		for (auto type : types)
+		{
+			if (type == typeChild)
+			{
+				return true;
+			}
+		}
+
+		cout << name << ": child " << child->toString() << " is not " << getTypesName(types) << endl;
+
+		return false;
+	}
+};
+
+class NotOp : public UnaryOp
+{
+
+public:
+	NotOp(ExprTreePtr childIn) : UnaryOp(childIn)
+	{
+		type = TYPE_BOOLEAN;
+		name = "NOT";
 	}
 
 	string toString()
@@ -346,19 +559,20 @@ public:
 		return "!(" + child->toString() + ")";
 	}
 
-	~NotOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
+	}
 };
 
-class SumOp : public ExprTree
+class SumOp : public UnaryOp
 {
 
-private:
-	ExprTreePtr child;
-
 public:
-	SumOp(ExprTreePtr childIn)
+	SumOp(ExprTreePtr childIn) : UnaryOp(childIn)
 	{
-		child = childIn;
+		type = TYPE_NUMBER;
+		name = "SUM";
 	}
 
 	string toString()
@@ -366,19 +580,20 @@ public:
 		return "sum(" + child->toString() + ")";
 	}
 
-	~SumOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
-class AvgOp : public ExprTree
+class AvgOp : public UnaryOp
 {
 
-private:
-	ExprTreePtr child;
-
 public:
-	AvgOp(ExprTreePtr childIn)
+	AvgOp(ExprTreePtr childIn) : UnaryOp(childIn)
 	{
-		child = childIn;
+		type = TYPE_NUMBER;
+		name = "AVG";
 	}
 
 	string toString()
@@ -386,7 +601,10 @@ public:
 		return "avg(" + child->toString() + ")";
 	}
 
-	~AvgOp() {}
+	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+	}
 };
 
 #endif
