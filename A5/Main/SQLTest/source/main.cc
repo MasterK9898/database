@@ -188,7 +188,7 @@ int main(int numArgs, char **args)
 						// print it out
 						final->printSFWQuery();
 
-						final->checkQuery(myCatalog);
+						final->check(myCatalog);
 					}
 
 					// get outta here

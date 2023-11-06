@@ -10,7 +10,6 @@
 #include "MyDB_Table.h"
 #include <string>
 #include <utility>
-#include <unordered_map>
 #include <unordered_set>
 
 using namespace std;
@@ -218,9 +217,14 @@ struct SFWQuery
 
 private:
 	// the various parts of the SQL query
+
+	// SELECT
 	vector<ExprTreePtr> valuesToSelect;
+	// FROM
 	vector<pair<string, string>> tablesToProcess;
+	// WHERE
 	vector<ExprTreePtr> allDisjunctions;
+	// GROUP BY
 	vector<ExprTreePtr> groupingClauses;
 
 public:
@@ -276,75 +280,103 @@ public:
 		}
 	}
 
-	void checkQuery(MyDB_CatalogPtr myCatalog)
+	void check(MyDB_CatalogPtr myCatalog)
 	{
-		vector<string> tablesList;
-		myCatalog->getStringList("tables", tablesList);
-		// first we need to found if all the tables exist
-		for (auto pair : tablesToProcess)
+		// basically we need to the for brothers
+
+		// SELECT
+		for (auto expr : valuesToSelect)
 		{
-			bool found = false;
-			for (auto tableName : tablesList)
+			if (!expr->check(myCatalog, tablesToProcess))
 			{
-				if (tableName.compare(pair.first) == 0)
-				{
-					found = true;
-					break;
-				}
-			}
-			if (!found)
-			{
-				cout << "Table " + pair.first + " cannot be found" << endl;
 				return;
 			}
 		}
 
-		// second we need the grouping attributes to be in the select clause
-		for (auto value : valuesToSelect)
+		// beside from checking the validity, we also need to make sure that the grouping rules are followed
+		if (groupingClauses.size() > 0)
+		// if there is grouping, then the select clause can only contain grouped attributes or aggregation
 		{
-			if (value->isIdentifier())
+			// get all identifiers out
+			unordered_set<string> IdentifierSet;
+
+			// GROUP BY
+			for (auto expr : groupingClauses)
 			{
-				bool found = false;
-				for (auto clause : groupingClauses)
+				if (expr->isIdentifier())
 				{
-					if (clause->isIdentifier() && value->toString() == clause->toString())
-					{
-						found = true;
-						break;
-					}
+					IdentifierSet.insert(expr->toString());
 				}
-				if (!found)
+				// we can by the way check its validity...
+				if (!expr->check(myCatalog, tablesToProcess))
 				{
-					cout << "Selected attribute " << value->toString() << " is not in grouping" << endl;
+					return;
+				}
+			}
+
+			for (auto expr : valuesToSelect)
+			{
+				if (expr->isIdentifier() && IdentifierSet.find(expr->toString()) == IdentifierSet.end())
+				{
+					cout << "SELECT: " << expr->toString() << " not in grouping" << endl;
 					return;
 				}
 			}
 		}
+		// else
+		// // if there is not grouping, then the select clause can only contain attributes or aggregation
+		// {
+		// 	bool hasAttribute = false;
+		// 	bool hasAggregation = false;
 
-		// third we check all the querys
-		for (auto expr : valuesToSelect)
+		// 	for (auto expr : valuesToSelect)
+		// 	{
+		// 		if (expr->isAggregate())
+		// 		{
+		// 			hasAggregation = true;
+		// 		}
+		// 		else
+		// 		{
+		// 			hasAttribute = true;
+		// 		}
+
+		// 		if (hasAttribute && hasAggregation)
+		// 		{
+		// 			cout << "SELECT: " << expr->toString() << " has both attribute and aggregation without grouping" << endl;
+		// 			return;
+		// 		}
+		// 	}
+		// }
+
+		vector<string> tableList;
+		myCatalog->getStringList("tables", tableList);
+
+		// iterating thoguh each time is just tooooooooo silly, let's use a hash to speed it up
+		unordered_set<string> tableSet(tableList.begin(), tableList.end());
+
+		// FROM
+		for (auto pair : tablesToProcess)
 		{
-			if (!expr->checkQuery(myCatalog, tablesToProcess))
+			// c++ 11 don't have decomposition
+			auto name = pair.first;
+
+			if (tableSet.find(name) != tableSet.end())
 			{
+				cout << "FROM: table " + name + " not found" << endl;
 				return;
 			}
 		}
+
+		// WHERE
 		for (auto expr : allDisjunctions)
 		{
-			if (!expr->checkQuery(myCatalog, tablesToProcess))
-			{
-				return;
-			}
-		}
-		for (auto expr : groupingClauses)
-		{
-			if (!expr->checkQuery(myCatalog, tablesToProcess))
+			if (!expr->check(myCatalog, tablesToProcess))
 			{
 				return;
 			}
 		}
 
-		cout << "The query is valid." << endl;
+		cout << "VALID" << endl;
 	}
 
 #include "FriendDecls.h"
@@ -398,9 +430,9 @@ public:
 		myQuery.print();
 	}
 
-	void checkQuery(MyDB_CatalogPtr myCatalog)
+	void check(MyDB_CatalogPtr myCatalog)
 	{
-		myQuery.checkQuery(myCatalog);
+		myQuery.check(myCatalog);
 	}
 
 #include "FriendDecls.h"

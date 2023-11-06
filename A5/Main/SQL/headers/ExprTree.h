@@ -63,7 +63,11 @@ class ExprTree
 public:
 	virtual string toString() = 0;
 	virtual ~ExprTree(){};
-	virtual bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess) = 0;
+	virtual bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess) = 0;
+
+	// get all the identifier included in this expression
+	// do we need to implement this?
+	// virtual vector<string> getIdentifierList() = 0;
 
 	virtual ExprType getType()
 	{
@@ -71,6 +75,11 @@ public:
 	};
 
 	bool isIdentifier()
+	{
+		return false;
+	}
+
+	bool isAggregate()
 	{
 		return false;
 	}
@@ -96,7 +105,7 @@ protected:
 
 	~Literal() {}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		return true;
 	}
@@ -206,7 +215,7 @@ public:
 
 	~Identifier() {}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		string tableKey = "";
 		for (auto pair : tablesToProcess)
@@ -223,22 +232,22 @@ public:
 			return false;
 		}
 
-		string res;
-		if (!myCatalog->getString(tableKey + "." + attName + ".type", res))
+		string stringType;
+		if (!myCatalog->getString(tableKey + "." + attName + ".type", stringType))
 		{
 			cout << "TYPE_IDENTIFIER: Attribute Name " << attName << " is not found" << endl;
 			return false;
 		};
 
-		if (res == "int" || res == "double")
+		if (stringType == "int" || stringType == "double")
 		{
 			type = TYPE_NUMBER;
 		}
-		else if (res == "string")
+		else if (stringType == "string")
 		{
 			type = TYPE_STRING;
 		}
-		else if (res == "bool")
+		else if (stringType == "bool")
 		{
 			type = TYPE_BOOLEAN;
 		}
@@ -261,9 +270,9 @@ protected:
 	~BinaryOp() {}
 
 	// the template method
-	bool checkQueryHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
+	bool checkHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
 	{
-		if (!lhs->checkQuery(myCatalog, tablesToProcess) || !rhs->checkQuery(myCatalog, tablesToProcess))
+		if (!lhs->check(myCatalog, tablesToProcess) || !rhs->check(myCatalog, tablesToProcess))
 		{
 			return false;
 		}
@@ -312,9 +321,9 @@ public:
 		return "- (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
@@ -334,10 +343,10 @@ public:
 		return "+ (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		// then we check the query
-		if (!BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING}))
+		if (!BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING}))
 		{
 			return false;
 		};
@@ -363,9 +372,9 @@ public:
 		return "* (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
@@ -384,9 +393,9 @@ public:
 		return "/ (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		if (!BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER}))
+		if (!BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER}))
 		{
 			return false;
 		}
@@ -417,10 +426,10 @@ public:
 		return "> (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		// are we allowed for boolean or string compare?
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
@@ -439,10 +448,10 @@ public:
 		return "< (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		// are we allowed for boolean or string compare?
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
@@ -461,9 +470,9 @@ public:
 		return "!= (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
 	}
 };
 
@@ -482,9 +491,9 @@ public:
 		return "|| (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
 	}
 };
 
@@ -503,9 +512,9 @@ public:
 		return "== (" + lhs->toString() + ", " + rhs->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return BinaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN, TYPE_NUMBER, TYPE_STRING});
 	}
 };
 
@@ -522,9 +531,9 @@ protected:
 	~UnaryOp() {}
 
 	// the template method
-	bool checkQueryHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
+	bool checkHelper(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess, vector<ExprType> types)
 	{
-		if (!child->checkQuery(myCatalog, tablesToProcess))
+		if (!child->check(myCatalog, tablesToProcess))
 		{
 			return false;
 		}
@@ -566,9 +575,9 @@ public:
 		return "!(" + child->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
-		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
+		return UnaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_BOOLEAN});
 	}
 };
 
@@ -587,9 +596,14 @@ public:
 		return "sum(" + child->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool isAggregate()
 	{
-		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return true;
+	}
+
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return UnaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
@@ -608,9 +622,14 @@ public:
 		return "avg(" + child->toString() + ")";
 	}
 
-	bool checkQuery(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	bool isAggregate()
 	{
-		return UnaryOp::checkQueryHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return true;
+	}
+
+	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
+	{
+		return UnaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
 	}
 };
 
