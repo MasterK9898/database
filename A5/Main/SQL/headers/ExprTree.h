@@ -305,7 +305,7 @@ protected:
 
 		if (typeLeft != typeRight)
 		{
-			cout << name << ": " << printExprs({{OP_LEFT, lhs}, {OP_RIGHT, rhs}}) << " are not the same type" << endl;
+			cout << name << ": " << printExprs({{OP_LEFT, lhs}, {OP_RIGHT, rhs}}) << "are not the same type" << endl;
 			return false;
 		}
 
