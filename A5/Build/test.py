@@ -15,13 +15,21 @@ table_sql_dir = sys.argv[3]
 test_sql_dir = sys.argv[4]
 output_dir = sys.argv[5]
 
+
+
 # This function will read the output of the command and print it
 def read_output(out_pipe):
+    count = 1
     with open(output_dir, 'w') as file:
       output = iter(out_pipe.readline, '')
       for line in output:
-          print(line, end='')
+        print(line, end='')
+        if(re.match(r'(^[A-Z]+:)|VALID', line)):
+          file.write(str(count) + '\n')
           file.write(line)
+          file.write('\n')
+          file.flush()
+          count += 1
 
 # This function will send input to the subprocess every 10 seconds
 def write_input(in_queue, in_pipe):
@@ -82,5 +90,8 @@ while True:
     i += 1
 
     time.sleep(1)  # Wait for 1 second1
+
+# the subprocess will always printout new things, so we can just leave it for sometime
+time.sleep(1)
 
 print("Done")
