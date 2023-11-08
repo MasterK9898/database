@@ -446,7 +446,7 @@ public:
 	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		// are we allowed for boolean or string compare?
-		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING});
 	}
 };
 
@@ -468,7 +468,7 @@ public:
 	bool check(MyDB_CatalogPtr myCatalog, vector<pair<string, string>> tablesToProcess)
 	{
 		// are we allowed for boolean or string compare?
-		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER});
+		return BinaryOp::checkHelper(myCatalog, tablesToProcess, {TYPE_NUMBER, TYPE_STRING});
 	}
 };
 
