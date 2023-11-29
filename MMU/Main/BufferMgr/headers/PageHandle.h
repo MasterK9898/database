@@ -5,17 +5,17 @@
 #include <memory>
 #include <string>
 #include <iostream>
-#include "MyDB_Page.h"
-#include "MyDB_Table.h"
+#include "Page.h"
+#include "Table.h"
 
 // page handles are basically smart pointers
 using namespace std;
-class MyDB_PageHandleBase;
+class PageHandleBase;
 
-typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
-typedef shared_ptr<MyDB_PageHandleBase> MyDB_PageHandle;
+typedef shared_ptr<Page> PagePtr;
+typedef shared_ptr<PageHandleBase> PageHandle;
 
-class MyDB_PageHandleBase
+class PageHandleBase
 {
 
 public:
@@ -37,12 +37,12 @@ public:
 	// to the particular page that it references.  If the number of
 	// references to a pinned page goes down to zero, then the page should
 	// become unpinned.
-	~MyDB_PageHandleBase();
+	~PageHandleBase();
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
 
 	// init the page handle
-	MyDB_PageHandleBase(MyDB_PagePtr page);
+	PageHandleBase(PagePtr page);
 
 	// unpin a apge
 	void unPin();
@@ -51,7 +51,7 @@ private:
 	// YOUR CODE HERE
 
 	// pointer to page
-	MyDB_PagePtr page;
+	PagePtr page;
 };
 
 #endif

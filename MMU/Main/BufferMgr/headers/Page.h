@@ -3,24 +3,24 @@
 #define PAGE_H
 
 #include <memory>
-// #include "MyDB_BufferManager.h"
-// #include "MyDB_Page.h"
-#include "MyDB_Table.h"
+// #include "BufferManager.h"
+// #include "Page.h"
+#include "Table.h"
 
 using namespace std;
-class MyDB_Page;
-class MyDB_BufferManager;
-class MyDB_PageHandleBase;
+class Page;
+class BufferManager;
+class PageHandleBase;
 
-typedef shared_ptr<MyDB_Page> MyDB_PagePtr;
+typedef shared_ptr<Page> PagePtr;
 // a page object that stores the meat
-class MyDB_Page
+class Page
 {
 
 public:
-  ~MyDB_Page();
+  ~Page();
 
-  MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned);
+  Page(TablePtr table, size_t pageIndex, BufferManager *manager, bool pinned);
 
   // decrements the ref count
   void removeRef();
@@ -29,8 +29,8 @@ public:
   void addRef();
 
 private:
-  friend class MyDB_BufferManager;
-  friend class MyDB_PageHandleBase;
+  friend class BufferManager;
+  friend class PageHandleBase;
   // the meat
   void *bytes;
 
@@ -44,10 +44,10 @@ private:
   bool pinned;
 
   // pointer to the parent buffer manager
-  MyDB_BufferManager *manager;
+  BufferManager *manager;
 
   // reference to the table, could be nullptr for annonymous pages
-  MyDB_TablePtr table;
+  TablePtr table;
 
   // this is the position of the page in the relation
   size_t pageIndex;

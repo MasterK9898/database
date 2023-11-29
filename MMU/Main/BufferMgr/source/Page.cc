@@ -2,17 +2,17 @@
 #ifndef PAGE_C
 #define PAGE_C
 
-#include "MyDB_Page.h"
-#include "MyDB_PageHandle.h"
-#include "MyDB_Table.h"
-#include "MyDB_BufferManager.h"
+#include "Page.h"
+#include "PageHandle.h"
+#include "Table.h"
+#include "BufferManager.h"
 
 using namespace std;
 
-MyDB_Page::MyDB_Page(MyDB_TablePtr table, size_t pageIndex, MyDB_BufferManager *manager, bool pinned)
+Page::Page(TablePtr table, size_t pageIndex, BufferManager *manager, bool pinned)
     : bytes(nullptr), doNotKill(false), dirty(false), pinned(pinned), manager(manager), table(table), pageIndex(pageIndex), ref(0) {}
 
-MyDB_Page::~MyDB_Page()
+Page::~Page()
 {
   // no need to write back at this stage
   // because the clock has a pointer to the page
@@ -20,7 +20,7 @@ MyDB_Page::~MyDB_Page()
   // which means an evict happens, and at that time write back already happened
 }
 
-void MyDB_Page::removeRef()
+void Page::removeRef()
 {
   this->ref--;
   if (ref == 0)
@@ -40,7 +40,7 @@ void MyDB_Page::removeRef()
   }
 }
 
-void MyDB_Page::addRef()
+void Page::addRef()
 {
   this->ref++;
 }

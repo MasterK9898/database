@@ -11,39 +11,39 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <iostream>
-#include "MyDB_Page.h"
-#include "MyDB_PageHandle.h"
-#include "MyDB_Table.h"
-#include "MyDB_BufferManager.h"
+#include "Page.h"
+#include "PageHandle.h"
+#include "Table.h"
+#include "BufferManager.h"
 
 using namespace std;
 
-MyDB_PageHandle MyDB_BufferManager ::getPage(MyDB_TablePtr whichTable, long i)
+PageHandle BufferManager ::getPage(TablePtr whichTable, long i)
 {
   return this->getNormalPage(whichTable, i, false);
 }
 
-MyDB_PageHandle MyDB_BufferManager ::getPage()
+PageHandle BufferManager ::getPage()
 {
   return this->getAnonPage(false);
 }
 
-MyDB_PageHandle MyDB_BufferManager ::getPinnedPage(MyDB_TablePtr whichTable, long i)
+PageHandle BufferManager ::getPinnedPage(TablePtr whichTable, long i)
 {
   return this->getNormalPage(whichTable, i, true);
 }
 
-MyDB_PageHandle MyDB_BufferManager ::getPinnedPage()
+PageHandle BufferManager ::getPinnedPage()
 {
   return this->getAnonPage(true);
 }
 
-void MyDB_BufferManager ::unpin(MyDB_PageHandle unpinMe)
+void BufferManager ::unpin(PageHandle unpinMe)
 {
   unpinMe->unPin();
 }
 
-MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
+BufferManager ::BufferManager(size_t pageSize, size_t numPages, string tempFile) : clockHand(0), pageSize(pageSize), numPages(numPages), tempFile(tempFile), tempIndex(0)
 {
   // init the clock
   clock.resize(numPages, nullptr);
@@ -59,7 +59,7 @@ MyDB_BufferManager ::MyDB_BufferManager(size_t pageSize, size_t numPages, string
   }
 }
 
-MyDB_BufferManager ::~MyDB_BufferManager()
+BufferManager ::~BufferManager()
 {
   // write back all pages
   for (auto pair : this->pageTable)
@@ -83,7 +83,7 @@ MyDB_BufferManager ::~MyDB_BufferManager()
   remove(tempFile.c_str());
 }
 
-void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
+void BufferManager::retrivePage(PagePtr page)
 {
   if (page->bytes == nullptr)
   // check the pointer to see if it is buffered
@@ -109,7 +109,7 @@ void MyDB_BufferManager::retrivePage(MyDB_PagePtr page)
   }
 }
 
-void MyDB_BufferManager::writeBackPage(MyDB_PagePtr page)
+void BufferManager::writeBackPage(PagePtr page)
 {
   // the page itself could still be kept, for future use
   // but it's memory is gone, and need to read again from disk
@@ -129,7 +129,7 @@ void MyDB_BufferManager::writeBackPage(MyDB_PagePtr page)
 }
 
 // encapsulats the file table away from the outside, proxy pattern
-int MyDB_BufferManager::openFile(MyDB_TablePtr whichTable)
+int BufferManager::openFile(TablePtr whichTable)
 {
   if (this->fileTable.count(whichTable) == 0)
   // open the file and store it onto the table if it's not
@@ -150,7 +150,7 @@ int MyDB_BufferManager::openFile(MyDB_TablePtr whichTable)
 // free the meory and points clock hand to this unit
 // the idea of clock hand is not visible to the out side, a layer of encapsulation
 // no matter whether there's a "hole" in the clock ,the clock only turns to the next position
-size_t MyDB_BufferManager::evict()
+size_t BufferManager::evict()
 {
 
   // track the total rounds, prevent infinite loop
@@ -206,38 +206,38 @@ size_t MyDB_BufferManager::evict()
   return evictIndex;
 }
 
-MyDB_PageHandle MyDB_BufferManager::getNormalPage(MyDB_TablePtr whichTable, long i, bool pinned)
+PageHandle BufferManager::getNormalPage(TablePtr whichTable, long i, bool pinned)
 {
   this->openFile(whichTable);
 
   // get the key
-  pair<MyDB_TablePtr, long> key = make_pair(whichTable, i);
+  pair<TablePtr, long> key = make_pair(whichTable, i);
   if (this->pageTable.count(key) == 0)
   // create one from scratch, insert to table
   {
     // it is not there, so create a page
-    auto newPage = make_shared<MyDB_Page>(whichTable, i, this, pinned);
+    auto newPage = make_shared<Page>(whichTable, i, this, pinned);
     this->pageTable[key] = newPage;
-    return make_shared<MyDB_PageHandleBase>(newPage);
+    return make_shared<PageHandleBase>(newPage);
   }
   else
   // get from table
   {
-    MyDB_PagePtr page = this->pageTable[key];
+    PagePtr page = this->pageTable[key];
     if (pinned)
     // update pinned if needed
     {
       page->pinned = true;
     }
-    return make_shared<MyDB_PageHandleBase>(page);
+    return make_shared<PageHandleBase>(page);
   }
 }
 
-MyDB_PageHandle MyDB_BufferManager::getAnonPage(bool pinned)
+PageHandle BufferManager::getAnonPage(bool pinned)
 {
   // under radar, no record on table
-  auto anonPage = make_shared<MyDB_Page>(nullptr, this->tempIndex++, this, pinned);
-  return make_shared<MyDB_PageHandleBase>(anonPage);
+  auto anonPage = make_shared<Page>(nullptr, this->tempIndex++, this, pinned);
+  return make_shared<PageHandleBase>(anonPage);
 }
 
 #endif

@@ -7,17 +7,17 @@
 
 // create a smart pointer for database tables
 using namespace std;
-class MyDB_Table;
-typedef shared_ptr <MyDB_Table> MyDB_TablePtr;
+class Table;
+typedef shared_ptr <Table> TablePtr;
 
 // this class encapsulates the notion of a database table
 // DO NOT MODIFY!
-class MyDB_Table {
+class Table {
 
 public:
 
 	// creates a new table with the given name, at the given storage location
-	MyDB_Table (string name, string storageLoc);
+	Table (string name, string storageLoc);
 
 	// get the name of the table
 	string &getName ();
@@ -26,7 +26,7 @@ public:
 	string &getStorageLoc ();
 
 	// kill the dude
-	~MyDB_Table ();
+	~Table ();
 
 private:
 
