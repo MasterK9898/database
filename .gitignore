@@ -7,4 +7,6 @@
 !**/Build/**/*.py
 !**/Build/**/*.tbl
 !**/Build/**/*.sql
+!A7/Build/SQLQueries
+!A7/Build/SQLQueries/**
 **/A0/**
