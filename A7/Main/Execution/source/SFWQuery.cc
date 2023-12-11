@@ -7,6 +7,8 @@
 
 using namespace std;
 
+string storageSuffix = "_storage.bin";
+
 inline void printSchema(MyDB_SchemaPtr schema)
 {
 	cout << "Schema is: ";
@@ -15,6 +17,18 @@ inline void printSchema(MyDB_SchemaPtr schema)
 		cout << att.first << " " << att.second->toString() << "|";
 	}
 	cout << endl;
+}
+
+// replace all ocurances of b in a with c
+// written by chatgpt
+void replaceAll(std::string &a, const std::string &b, const std::string &c)
+{
+	size_t pos = 0;
+	while ((pos = a.find(b, pos)) != std::string::npos)
+	{
+		a.replace(pos, b.length(), c);
+		pos += c.length();
+	}
 }
 
 LogicalOpPtr SFWQuery ::join(map<string, MyDB_TablePtr> &allTables, map<string, MyDB_TableReaderWriterPtr> &allTableReaderWriters, vector<ExprTreePtr> targetExprs,
@@ -45,17 +59,14 @@ LogicalOpPtr SFWQuery ::join(map<string, MyDB_TablePtr> &allTables, map<string, 
 
 		auto res = make_shared<LogicalTableScan>(
 				allTableReaderWriters[tableInfo.first],
-				make_shared<MyDB_Table>(tableInfo.second, tableInfo.second + "StorageLoc", outputScheme),
+				make_shared<MyDB_Table>(tableInfo.second, tableInfo.second + storageSuffix, outputScheme),
 				make_shared<MyDB_Stats>(targetTable, tableInfo.second),
 				CNF, exprsToCompute);
 
-		// if (totTables == 1)
-		// 	finalScheme = outputScheme;
 		return res;
 	}
 	else
 	{
-		cout << "Joining " << targetTables.size() << " tables\n";
 		// we need to partition the tables into left and right
 		// we will first do this arbitraryly
 
@@ -156,7 +167,7 @@ LogicalOpPtr SFWQuery ::join(map<string, MyDB_TablePtr> &allTables, map<string, 
 		}
 
 		// we cannot give it a predicated name, because now we have recursion, we need to give it a unique name
-		string tableName = "Join";
+		string tableName = "join";
 		for (auto table : targetTables)
 		{
 			tableName += ("_" + table.second);
@@ -166,29 +177,12 @@ LogicalOpPtr SFWQuery ::join(map<string, MyDB_TablePtr> &allTables, map<string, 
 		LogicalOpPtr leftJoin = join(allTables, allTableReaderWriters, leftExprs, leftTables, leftCNF);
 		LogicalOpPtr rightJoin = join(allTables, allTableReaderWriters, rightExprs, rightTables, rightCNF);
 
-		cout << "Joined " << targetTables.size() << "left and right tables\n";
-		// we can use targetExprs ?
 		LogicalOpPtr res = make_shared<LogicalJoin>(
 				leftJoin, rightJoin,
-				make_shared<MyDB_Table>(tableName, tableName + "StorageLoc", topSchema),
+				make_shared<MyDB_Table>(tableName, tableName + storageSuffix, topSchema),
 				topCNF, topExprs);
 
-		// if (targetTables.size() == totTables)
-		// 	finalScheme = topSchema;
-
 		return res;
-	}
-}
-
-// replace all ocurances of b in a with c
-// written by chatgpt
-void replaceAll(std::string &a, const std::string &b, const std::string &c)
-{
-	size_t pos = 0;
-	while ((pos = a.find(b, pos)) != std::string::npos)
-	{
-		a.replace(pos, b.length(), c);
-		pos += c.length();
 	}
 }
 
@@ -213,6 +207,8 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 
 	auto joinOp = join(allTables, allTableReaderWriters, valuesToSelect, tablesToProcess, allDisjunctions);
 
+	// printSchema(joinOp->getOutputTable()->getSchema());
+
 	LogicalOpPtr intermediate = joinOp;
 
 	// we need to rename the aggregated attributs or else it will be compiled wrongly
@@ -231,22 +227,6 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 		int groupIndex = 0;
 		for (const auto &groupExpr : groupingClauses)
 		{
-			// we need to get rid of the brackets
-
-			// // string newName = "group_" + to_string(attId);
-			// // aggScheme->getAtts().emplace_back(newName, myRecord.getType(groupExpr->toString()));
-			// aggScheme->getAtts().emplace_back(groupExpr->toString(), joinRecord.getType(groupExpr->toString()));
-			// // renameTable[groupExpr->toString()] = newName;
-			// // attId++;
-
-			// 	// we need to get rid of the brackets
-
-			// // string newName = "group_" + to_string(attId);
-			// // aggScheme->getAtts().emplace_back(newName, myRecord.getType(groupExpr->toString()));
-			// aggScheme->getAtts().emplace_back(groupExpr->toString(), joinRecord.getType(groupExpr->toString()));
-			// // renameTable[groupExpr->toString()] = newName;
-			// // attId++;
-
 			string originalName = groupExpr->toString();
 			// give it a much simpler name
 			string newName = "group_" + to_string(groupIndex++);
@@ -255,65 +235,29 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 			renameAtt[originalName] = newName;
 		}
 
-		// extract identifier from group by clauses
-		// for (const auto &groupExpr : groupingClauses)
-		// {
-		// 	for (const auto &idExpr : groupExpr->getIdentifiers())
-		// 	{
-		// 		string idExprStr = idExpr->toString();
-		// 		if (renameTable.find(idExprStr) == renameTable.end())
-		// 		{
-		// 			groupingClauses.push_back(idExpr);
-		// 			// assert(idExprStr.size() >= 2);
-		// 			string newName = idExprStr.substr(1, idExprStr.size() - 2);
-		// 			aggScheme->getAtts().emplace_back(newName, myRecord.getType(idExpr->toString()));
-		// 			renameTable[idExprStr] = newName;
-		// 			attId++;
-		// 		}
-		// 	}
-		// }
-
 		vector<ExprTreePtr> aggToSelect;
 
 		int aggIndex = 0;
 		for (auto &expr : valuesToSelect)
+		// we now can only deal with simple aggregations, not somthing like sum(a) + sum(b)
 		{
-			auto aggsExprs = expr->getAggExprs();
-			for (auto aggExpr : aggsExprs)
+			if (expr->hasAgg())
 			{
-				string originalName = aggExpr->toString();
+				string originalName = expr->toString();
 				// give it a much simpler name
 				string newName = "agg_" + to_string(aggIndex++);
-				aggToSelect.push_back(aggExpr);
+				aggToSelect.push_back(expr);
 				aggScheme->getAtts().emplace_back(newName, joinRecord.getType(originalName));
 
 				renameAtt[originalName] = newName;
 			}
-			// if (expr->hasAgg())
-			// {
-			// 	aggToSelect.push_back(expr);
-			// 	aggScheme->getAtts().emplace_back(expr->toString(), joinRecord.getType(expr->toString()));
-			// }
 		}
 
-		// vector<string> allRenamedKeys;
-		// for (const auto &p : renameTable)
-		// 	allRenamedKeys.push_back(p.first);
-
-		// vector<string> finalSelections;
-		// for (auto &expr : valuesToSelect)
-		// {
-		// 	string exprStr = expr->toString();
-		// 	for (const auto &renamedKeys : allRenamedKeys)
-		// 	{
-		// 		replace(exprStr, renamedKeys, "[" + renameTable[renamedKeys] + "]");
-		// 	}
-		// 	finalSelections.push_back(exprStr);
-		// }
+		string tableName = "aggregate";
 
 		intermediate = make_shared<LogicalAggregate>(
 				joinOp,
-				make_shared<MyDB_Table>("agg", "agg.bin", aggScheme),
+				make_shared<MyDB_Table>(tableName, tableName + storageSuffix, aggScheme),
 				aggToSelect,
 				groupingClauses);
 	}
@@ -324,17 +268,7 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 
 	// there is one more step: we need to deal with computation
 
-	// the only case we dont need to do anything is when there is no computation and no aggregation
-	// bool hasComputation = false;
-	// for (auto &expr : valuesToSelect)
-	// {
-	// 	if (expr->isId() || expr)
-	// 	{
-	// 		hasComputation = true;
-	// 		break;
-	// 	}
-	// }
-	printSchema(intermediate->getOutputTable()->getSchema());
+	// printSchema(intermediate->getOutputTable()->getSchema());
 
 	auto intermediateRecord = MyDB_Record(intermediate->getOutputTable()->getSchema());
 
@@ -351,7 +285,6 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 		// we first create the schema matching to final result
 		// we need to replace the name of the attributes
 		// if (expr->hasAgg())
-		// {
 		string exprStr = expr->toString();
 		for (const auto &p : renameAtt)
 		{
@@ -361,57 +294,12 @@ LogicalOpPtr SFWQuery ::buildLogicalQueryPlan(map<string, MyDB_TablePtr> &allTab
 		}
 		retScheme->getAtts().emplace_back("output_" + to_string(outputIndex++), intermediateRecord.getType(exprStr));
 		exprsToCompute.push_back(exprStr);
-		// }
-		// else
-		// {
-		// 	retScheme->getAtts().emplace_back(expr->toString(), intermediateRecord.getType(expr->toString()));
-		// 	exprsToCompute.push_back(expr->toString());
-		// }
-		// string exprStr = expr->toString();
-		// for (const auto &p : renameAtt)
-		// {
-		// 	cout << "replacing " << p.first << " with "
-		// 			 << p.second << endl;
-		// 	replaceAll(exprStr, p.first, p.second);
-		// }
-		// retScheme->getAtts().emplace_back(expr->toString(), intermediateRecord.getType(exprStr));
-		// exprsToCompute.push_back("[" + exprStr + "]");
-		// if (expr->isId() || expr->isSum() || expr->isAvg())
-		// {
-		// 	// easy case: we just need to copy the attributes
-
-		// }
-		// else
-		// {
-
-		// }
 	}
 
-	cout << "expr to compute" << endl;
+	// printSchema(retScheme);
+	string tableName = "final";
 
-	for (auto str : exprsToCompute)
-	{
-		cout << str << "|";
-	}
-	cout << endl;
-
-	printSchema(retScheme);
-
-	cout << "finished construction" << endl;
-
-	/**
-	 * LogicalConvertScan(LogicalOpPtr inputOp, MyDB_TablePtr outputSpec,
-											 vector<string> &exprsToCompute)
-	*/
-	auto res = make_shared<LogicalConvertScan>(intermediate, make_shared<MyDB_Table>("final", "finalStorageLoc", retScheme), exprsToCompute);
-
-	// auto res = make_shared<LogicalTableScan>(
-	// 		input,
-	// 		make_shared<MyDB_Table>("final", "finalStorageLoc", outputScheme),
-	// 		make_shared<MyDB_Stats>(input->getTable(), onlyTable.second),
-	// 		CNF, exprs);
-
-	// cout << intermediate->getOutputTable()->getSchema()->getAtts() << endl;
+	auto res = make_shared<LogicalConvertScan>(intermediate, make_shared<MyDB_Table>(tableName, tableName + storageSuffix, retScheme), exprsToCompute);
 
 	return res;
 }

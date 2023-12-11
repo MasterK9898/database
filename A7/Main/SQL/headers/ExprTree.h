@@ -6,7 +6,6 @@
 #include "MyDB_Table.h"
 #include <string>
 #include <vector>
-#include <memory>
 
 // create a smart pointer for database tables
 using namespace std;
@@ -16,7 +15,7 @@ typedef shared_ptr<ExprTree> ExprTreePtr;
 // this class encapsules a parsed SQL expression (such as "this.that > 34.5 AND 4 = 5")
 
 // class ExprTree is a pure virtual class... the various classes that implement it are below
-class ExprTree : public enable_shared_from_this<ExprTree>
+class ExprTree
 {
 
 public:
@@ -37,7 +36,6 @@ public:
 	virtual ExprTreePtr getLHS() { return nullptr; }
 	virtual ExprTreePtr getRHS() { return nullptr; }
 	virtual ExprTreePtr getChild() { return nullptr; }
-	virtual MyDB_AttTypePtr getType(MyDB_TablePtr table) { return nullptr; }
 	virtual bool referencesTable(string alias) { return false; }
 	virtual bool referencesAtt(string alias, string attName) { return false; }
 	virtual bool hasAgg()
@@ -55,52 +53,6 @@ public:
 		if (child != nullptr)
 			res = res || child->hasAgg();
 		return res;
-	}
-
-	virtual vector<ExprTreePtr> getAggExprs()
-	{
-		if (isSum() || isAvg())
-			return {shared_from_this()};
-		auto child = getChild();
-		if (child != nullptr)
-			return child->getAggExprs();
-		auto lhs = getLHS();
-		auto rhs = getRHS();
-		vector<ExprTreePtr> res;
-		if (lhs != nullptr)
-		{
-			for (auto a : lhs->getAggExprs())
-				res.push_back(a);
-		}
-		if (rhs != nullptr)
-		{
-			for (auto a : rhs->getAggExprs())
-				res.push_back(a);
-		}
-		return {};
-	}
-
-	virtual vector<ExprTreePtr> getIdentifiers()
-	{
-		if (isId())
-			return {shared_from_this()};
-		auto child = getChild();
-		if (child != nullptr)
-			return child->getIdentifiers();
-		auto lhs = getLHS();
-		auto rhs = getRHS();
-		vector<ExprTreePtr> res;
-		if (lhs != nullptr)
-		{
-			for (auto a : lhs->getIdentifiers())
-				res.push_back(a);
-		}
-		if (rhs != nullptr)
-		{
-			for (auto a : rhs->getIdentifiers())
-				res.push_back(a);
-		}
-		return {};
 	}
 };
 
@@ -132,11 +84,6 @@ public:
 	{
 		return true;
 	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
 };
 
 class DoubleLiteral : public ExprTree
@@ -159,11 +106,6 @@ public:
 	bool isLiteral()
 	{
 		return true;
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_DoubleAttType>();
 	}
 
 	~DoubleLiteral() {}
@@ -192,11 +134,6 @@ public:
 		return true;
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_IntAttType>();
-	}
-
 	~IntLiteral() {}
 };
 
@@ -221,11 +158,6 @@ public:
 	bool isLiteral()
 	{
 		return true;
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_StringAttType>();
 	}
 
 	~StringLiteral() {}
@@ -256,11 +188,6 @@ public:
 	string getId()
 	{
 		return tableName + "_" + attName;
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		return table->getSchema()->getAttByName(attName).second;
 	}
 
 	bool isId()
@@ -314,16 +241,6 @@ public:
 			return rhs->getId();
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		auto lhsType = lhs->getType(table);
-		auto rhsType = rhs->getType(table);
-		if (lhsType->toString() == "int" && rhsType->toString() == "int")
-			return make_shared<MyDB_IntAttType>();
-		else
-			return make_shared<MyDB_DoubleAttType>();
-	}
-
 	ExprTreePtr getLHS()
 	{
 		return lhs;
@@ -368,18 +285,6 @@ public:
 			return res;
 		else
 			return rhs->getId();
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		auto lhsType = lhs->getType(table);
-		auto rhsType = rhs->getType(table);
-		if (lhsType->toString() == "double" || rhsType->toString() == "double")
-			return make_shared<MyDB_DoubleAttType>();
-		else if (lhsType->toString() == "int")
-			return make_shared<MyDB_IntAttType>();
-		else
-			return make_shared<MyDB_StringAttType>();
 	}
 
 	ExprTreePtr getLHS()
@@ -431,16 +336,6 @@ public:
 			return res;
 		else
 			return rhs->getId();
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		auto lhsType = lhs->getType(table);
-		auto rhsType = rhs->getType(table);
-		if (lhsType->toString() == "int" && rhsType->toString() == "int")
-			return make_shared<MyDB_IntAttType>();
-		else
-			return make_shared<MyDB_DoubleAttType>();
 	}
 
 	ExprTreePtr getLHS()
@@ -497,16 +392,6 @@ public:
 			return res;
 		else
 			return rhs->getId();
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		auto lhsType = lhs->getType(table);
-		auto rhsType = rhs->getType(table);
-		if (lhsType->toString() == "int" && rhsType->toString() == "int")
-			return make_shared<MyDB_IntAttType>();
-		else
-			return make_shared<MyDB_DoubleAttType>();
 	}
 
 	ExprTreePtr getLHS()
@@ -570,11 +455,6 @@ public:
 			return rhs->getId();
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
-
 	ExprTreePtr getLHS()
 	{
 		return lhs;
@@ -636,11 +516,6 @@ public:
 			return rhs->getId();
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
-
 	ExprTreePtr getLHS()
 	{
 		return lhs;
@@ -695,11 +570,6 @@ public:
 			return res;
 		else
 			return rhs->getId();
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
 	}
 
 	ExprTreePtr getLHS()
@@ -763,11 +633,6 @@ public:
 		return rhs;
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
-
 	bool referencesTable(string alias)
 	{
 		return lhs->referencesTable(alias) || rhs->referencesTable(alias);
@@ -829,11 +694,6 @@ public:
 		return "== (" + lhs->toString(includeTable) + ", " + rhs->toString(includeTable) + ")";
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
-
 	bool referencesTable(string alias)
 	{
 		return lhs->referencesTable(alias) || rhs->referencesTable(alias);
@@ -879,11 +739,6 @@ public:
 		return "!(" + child->toString(includeTable) + ")";
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_BoolAttType>();
-	}
-
 	bool referencesTable(string alias)
 	{
 		return child->referencesTable(alias);
@@ -924,11 +779,6 @@ public:
 		return child;
 	}
 
-	MyDB_AttTypePtr getType(MyDB_TablePtr table)
-	{
-		return child->getType(table);
-	}
-
 	bool referencesTable(string alias)
 	{
 		return child->referencesTable(alias);
@@ -962,11 +812,6 @@ public:
 	ExprTreePtr getChild()
 	{
 		return child;
-	}
-
-	MyDB_AttTypePtr getType(MyDB_TablePtr)
-	{
-		return make_shared<MyDB_DoubleAttType>();
 	}
 
 	bool isAvg()

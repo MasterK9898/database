@@ -108,7 +108,6 @@ void Aggregate ::run()
 	i = 0;
 	for (auto &s : aggsToCompute)
 	{
-		cout << "agg: " << s.first << ", " << s.second << endl;
 		if (s.first == MyDB_AggType ::sum || s.first == MyDB_AggType ::avg)
 		{
 			aggComps.push_back(combinedRec->compileComputation("+ (" + s.second +
@@ -129,8 +128,6 @@ void Aggregate ::run()
 		}
 	}
 	aggComps.push_back(combinedRec->compileComputation("+ ( int[1], [MyDB_CntAtt])"));
-
-	cout << "agg compiled\n";
 
 	// and this runs the selection on the input records
 	func inputPred = inputRec->compileComputation(selectionPredicate);

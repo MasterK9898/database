@@ -10,10 +10,6 @@
 #include <regex>
 #include <algorithm>
 
-// && (&& (== ([l_l_shipdate], string[1994-05-12]),== ([l_l_commitdate], string[1994-05-22])),== ([l_l_receiptdate], string[1994-06-10]))
-// && (== ([l_l_shipdate], string[1994-05-12]),== ([l_l_commitdate], string[1994-05-22])),         == ([l_l_receiptdate], string[1994-06-10])
-// == ([l_l_shipdate], string[1994-05-12])     == ([l_l_commitdate], string[1994-05-22])
-
 // making predicates into a super predicate
 string joinPredicates(vector<ExprTreePtr> pred, bool includeTable)
 {
@@ -36,8 +32,6 @@ string joinPredicates(vector<ExprTreePtr> pred, bool includeTable)
 		}
 	}
 
-	// cout << "res: " << res << endl;
-
 	return res;
 }
 
@@ -50,19 +44,6 @@ string joinPredicates(vector<ExprTreePtr> pred, bool includeTable)
 // sides should be deleted (via a kill to killFile () on the buffer manager)
 MyDB_TableReaderWriterPtr LogicalAggregate ::execute()
 {
-	/**
-	LogicalOpPtr inputOp;
-	MyDB_TablePtr outputSpec;
-	vector<ExprTreePtr> exprsToCompute;
-	vector<ExprTreePtr> groupings;
-	*/
-
-	/**
-	 * Aggregate (MyDB_TableReaderWriterPtr input, MyDB_TableReaderWriterPtr output,
-			vector <pair <MyDB_AggType, string>> aggsToCompute,
-			vector <string> groupings, string selectionPredicate);
-
-	*/
 	// first we need to run the input to get the table reader writer
 	auto input = inputOp->execute();
 	if (input == nullptr)
@@ -147,9 +128,6 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 
 	auto output = make_shared<MyDB_TableReaderWriter>(outputSpec, bufferMgr);
 
-	// auto leftSchema = left->getTable()->getSchema();
-	// string rightSchema = right->getTable()->getSchema();
-
 	auto finalPred = joinPredicates(outputSelectionPredicate, true);
 
 	// projection is the same as the exprsToCompute, but we need to convert it to string
@@ -186,62 +164,16 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 	string leftSelectionPredicateString = "bool[true]";
 	string rightSelectionPredicateString = "bool[true]";
 
-	// equality check is the same as the output selection predicate, but we need to convert it to pairs
-	// vector<pair<string, string>> equalityChecks;
-	// for (auto expr : outputSelectionPredicate)
-	// {
-	// 	// we need to put the left and right into the pair, and make sure first is the left
-	// 	string leftStr = expr->getLHS()->toString();
-	// 	string rightStr = expr->getRHS()->toString();
-
-	// 	// equality checks must be in the form of a.x = b.y
-
-	// 	// TODO: considring OR case
-	// 	auto leftExpr = expr->getLHS();
-	// 	auto rightExpr = expr->getRHS();
-	// 	if (leftExpr == nullptr || rightExpr == nullptr)
-	// 	{
-	// 		cout << "left or right expr is null" << endl;
-	// 		return nullptr;
-	// 	}
-
-	// 	// we need to make sure that the left is the left table
-	// 	if (!leftExpr->referencesTable(left->getTable()->getName()))
-	// 	{
-	// 		string temp = leftStr;
-	// 		leftStr = rightStr;
-	// 		rightStr = temp;
-	// 	}
-	// else if (leftExpr->referencesTable(right->getTable()->getName()))
-	// {
-	// 	cout << "left expr references right table" << endl;
-	// }
-	// else
-	// {
-	// 	cout << "left expr references right table" << endl;
-	// }
-
-	// cout << expr->getLHS()->toString() << " " << expr->getRHS()->toString() << endl;
-	// equalityChecks.push_back(make_pair(left, right));
-	// }
-
 	MyDB_TableReaderWriterPtr outputTable = make_shared<MyDB_TableReaderWriter>(outputSpec, left->getBufferMgr());
-	ScanJoin scanJoin(left, right, outputTable, finalPred, projections, equalityChecks, leftSelectionPredicateString, rightSelectionPredicateString);
 
-	scanJoin.run();
+	SortMergeJoin sortMergeJoin(left, right, outputTable, finalPred, projections, equalityChecks[0], leftSelectionPredicateString, rightSelectionPredicateString);
+	sortMergeJoin.run();
 
 	bufferMgr->killTable(left->getTable());
 	bufferMgr->killTable(right->getTable());
 
 	return outputTable;
 }
-/**
-	LogicalOpPtr leftInputOp;
-	LogicalOpPtr rightInputOp;
-	MyDB_TablePtr outputSpec;
-	vector<ExprTreePtr> outputSelectionPredicate;
-	vector<ExprTreePtr> exprsToCompute;
-*/
 
 // this costs the table scan returning the compute set of statistics for the output
 pair<double, MyDB_StatsPtr> LogicalTableScan ::cost()
@@ -270,14 +202,6 @@ MyDB_TableReaderWriterPtr LogicalTableScan ::execute()
 	return output;
 }
 
-/**
- * MyDB_TableReaderWriterPtr inputSpec;
-	MyDB_TablePtr outputSpec;
-	MyDB_StatsPtr inputStats;
-	vector<ExprTreePtr> selectionPred;
-	vector<string> exprsToCompute;
-*/
-
 pair<double, MyDB_StatsPtr> LogicalConvertScan::cost()
 {
 	return inputOp->cost();
@@ -292,7 +216,6 @@ MyDB_TableReaderWriterPtr LogicalConvertScan::execute()
 		exit(1);
 	}
 
-	cout << "where the fuck is my execution?" << endl;
 	auto bufferMgr = input->getBufferMgr();
 
 	auto output = make_shared<MyDB_TableReaderWriter>(outputSpec, bufferMgr);
