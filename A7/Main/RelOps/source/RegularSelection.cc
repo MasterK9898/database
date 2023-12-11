@@ -1,11 +1,12 @@
 
-#ifndef REG_SELECTION_C                                        
+#ifndef REG_SELECTION_C
 #define REG_SELECTION_C
 
 #include "RegularSelection.h"
 
-RegularSelection :: RegularSelection (MyDB_TableReaderWriterPtr inputIn, MyDB_TableReaderWriterPtr outputIn,
-                string selectionPredicateIn, vector <string> projectionsIn) {
+RegularSelection ::RegularSelection(MyDB_TableReaderWriterPtr inputIn, MyDB_TableReaderWriterPtr outputIn,
+																		string selectionPredicateIn, vector<string> projectionsIn)
+{
 
 	input = inputIn;
 	output = outputIn;
@@ -13,37 +14,43 @@ RegularSelection :: RegularSelection (MyDB_TableReaderWriterPtr inputIn, MyDB_Ta
 	projections = projectionsIn;
 }
 
-void RegularSelection :: run () {
+void RegularSelection ::run()
+{
 
-	MyDB_RecordPtr inputRec = input->getEmptyRecord ();
-	MyDB_RecordPtr outputRec = output->getEmptyRecord ();
-	
+	MyDB_RecordPtr inputRec = input->getEmptyRecord();
+	MyDB_RecordPtr outputRec = output->getEmptyRecord();
+
 	// compile all of the coputations that we need here
-	vector <func> finalComputations;
-	for (string s : projections) {
-		finalComputations.push_back (inputRec->compileComputation (s));
+	vector<func> finalComputations;
+	for (string s : projections)
+	{
+		finalComputations.push_back(inputRec->compileComputation(s));
 	}
-	func pred = inputRec->compileComputation (selectionPredicate);
+	func pred = inputRec->compileComputation(selectionPredicate);
 
 	// now, iterate through the B+-tree query results
-	MyDB_RecordIteratorAltPtr myIter = input->getIteratorAlt ();
-	while (myIter->advance ()) {
+	MyDB_RecordIteratorAltPtr myIter = input->getIteratorAlt();
+	while (myIter->advance())
+	{
 
-		myIter->getCurrent (inputRec);
+		myIter->getCurrent(inputRec);
 
 		// see if it is accepted by the predicate
-		if (!pred()->toBool ()) {
+		if (!pred()->toBool())
+		{
 			continue;
 		}
 
 		// run all of the computations
 		int i = 0;
-		for (auto &f : finalComputations) {
-			outputRec->getAtt (i++)->set (f());
+		for (auto &f : finalComputations)
+		{
+			// cout << "computing " << projections[i] << " result " << f()->toString() << "\n";
+			outputRec->getAtt(i++)->set(f());
 		}
 
-		outputRec->recordContentHasChanged ();
-		output->append (outputRec);
+		outputRec->recordContentHasChanged();
+		output->append(outputRec);
 	}
 }
 

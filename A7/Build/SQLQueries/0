@@ -1,0 +1,10 @@
+select 
+	c.c_name, n.n_name
+from 
+	customer as c, nation as n
+where
+	(c.c_nationkey = n.n_nationkey) and
+	(n.n_name = "UNITED STATES");
+
+
+	(c.c_name = "kevin") and

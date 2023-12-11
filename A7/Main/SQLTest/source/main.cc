@@ -101,6 +101,33 @@ int main(int numArgs, char **args)
 					return 0;
 				}
 
+				if (tokens.size() == 1 && toLower(tokens[0]) == "init")
+				{
+					cout << "OK, initializing all tables.\n";
+					auto allInitTables = {"lineitem", "orders", "customer", "supplier", "part", "partsupp", "nation", "region"};
+					for (auto name : allInitTables)
+					{
+						// make sure the table is there
+						if (allTableReaderWriters.count(name) == 0)
+						{
+							cout << "Could not find table " << name << ".\n";
+						}
+						else
+						{
+							cout << "OK, loading " << name << " from text file.\n";
+
+							// load up the file
+							auto fileName = "./tables/" + string(name) + ".tbl";
+							pair<vector<size_t>, size_t> res = allTableReaderWriters[name]->loadFromTextFile(fileName);
+
+							// and record the tuple various counts
+							allTableReaderWriters[name]->getTable()->setDistinctValues(res.first);
+							allTableReaderWriters[name]->getTable()->setTupleCount(res.second);
+						}
+					}
+					break;
+				}
+
 				// see if we got a "load soandso from afile"
 				if (tokens.size() == 4 && toLower(tokens[0]) == "load" && toLower(tokens[2]) == "from")
 				{
@@ -191,6 +218,34 @@ int main(int numArgs, char **args)
 						{
 							auto res = myPlan->cost();
 							cout << "cost was " << res.first << "\n";
+
+							// and execute it
+							auto output = myPlan->execute();
+
+							if (output != nullptr)
+							{
+								cout << "top 30 results: " << endl;
+
+								// Create number counters
+								int counter = 0;
+
+								MyDB_RecordPtr temp = output->getEmptyRecord();
+								auto myIter = output->getIteratorAlt();
+
+								while (myIter->advance())
+								{
+									myIter->getCurrent(temp);
+									if (counter < 30)
+									{
+										cout << temp << endl;
+									}
+									else
+									{
+										break;
+									}
+									counter++;
+								}
+							}
 						}
 					}
 

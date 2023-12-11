@@ -1,12 +1,15 @@
 *.o
+*.icloud
 *.zip
 *.h.gch
 .vscode
 **/Build/**
 !**/Build/**/SConstruct
 !**/Build/**/*.py
-!**/Build/**/*.tbl
+!**/Build/*.tbl
 !**/Build/**/*.sql
 !A7/Build/SQLQueries
 !A7/Build/SQLQueries/**
+A7/Build/tables/**
+
 **/A0/**
