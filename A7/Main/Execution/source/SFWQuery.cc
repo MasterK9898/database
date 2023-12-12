@@ -4,6 +4,9 @@
 
 #include "ParserTypes.h"
 #include <sstream>
+#include <algorithm>
+#include <limits>
+#include <unordered_map>
 
 using namespace std;
 
