@@ -115,6 +115,7 @@ pair<double, MyDB_StatsPtr> LogicalJoin ::cost()
 // sides should be deleted (via a kill to killFile () on the buffer manager)
 MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 {
+	// cout << "target " << outputSpec->getName() << ": JOIN START" << endl;
 	// first we need to execute the left and right, to get the left and right table reader writer
 	auto left = leftInputOp->execute();
 	auto right = rightInputOp->execute();
@@ -159,6 +160,13 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 			equalityChecks.emplace_back(leftStr, rightStr);
 		}
 	}
+
+	// we have to fake it up if there is no equality check
+	if (equalityChecks.size() == 0)
+	{
+		equalityChecks.emplace_back("bool[true]", "bool[true]");
+	}
+
 	// the left and right part have already done their check,
 	// so we don't need to check again
 	string leftSelectionPredicateString = "bool[true]";
@@ -168,6 +176,8 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 
 	SortMergeJoin sortMergeJoin(left, right, outputTable, finalPred, projections, equalityChecks[0], leftSelectionPredicateString, rightSelectionPredicateString);
 	sortMergeJoin.run();
+
+	// cout << "target " << outputSpec->getName() << ": JOIN COMPLETE" << endl;
 
 	bufferMgr->killTable(left->getTable());
 	bufferMgr->killTable(right->getTable());
@@ -189,6 +199,7 @@ pair<double, MyDB_StatsPtr> LogicalTableScan ::cost()
 // input into a join)
 MyDB_TableReaderWriterPtr LogicalTableScan ::execute()
 {
+	// cout << "target " << outputSpec->getName() << ": SCAN START" << endl;
 	// we will make the predicate into a super predicate
 	auto finalPred = joinPredicates(selectionPred, false);
 
@@ -199,6 +210,7 @@ MyDB_TableReaderWriterPtr LogicalTableScan ::execute()
 	RegularSelection regularSelection(inputSpec, output, finalPred, exprsToCompute);
 	regularSelection.run();
 
+	// cout << "target " << outputSpec->getName() << ": SCAN COMPLETE" << endl;
 	return output;
 }
 
