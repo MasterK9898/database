@@ -67,120 +67,176 @@ LogicalOpPtr SFWQuery ::join(map<string, MyDB_TablePtr> &allTables, map<string, 
 	}
 	else
 	{
+		LogicalOpPtr res;
 		// we need to partition the tables into left and right
-		// we will first do this arbitraryly
+		// we will use brutal force to test each case's cost and figure out the best one
 
 		// we can resue professor's code to a great extent, but we need to deal with multiple tables
 		// so we need some loops
-		vector<pair<string, string>> leftTables;
-		vector<pair<string, string>> rightTables;
-		for (int i = 0; i < targetTables.size(); i++)
+
+		double minCost = numeric_limits<double>::max();
+
+		// use bit to represent the left and right, 1 means left, 0 means right
+		int max = 1 << (targetTables.size() - 1);
+
+		cout << max << endl;
+
+		for (int i = 1; i < max; i++)
 		{
-			if (i < targetTables.size() / 2)
-				leftTables.push_back(targetTables[i]);
-			else
-				rightTables.push_back(targetTables[i]);
-		}
 
-		// find the various parts of the CNF
-		vector<ExprTreePtr> leftCNF;
-		vector<ExprTreePtr> rightCNF;
-		vector<ExprTreePtr> topCNF;
-
-		for (auto cnf : CNF)
-		{
-			bool inLeft = any_of(leftTables.begin(), leftTables.end(), [&cnf](const pair<string, string> &table)
-													 { return cnf->referencesTable(table.second); });
-			bool inRight = any_of(rightTables.begin(), rightTables.end(), [&cnf](const pair<string, string> &table)
-														{ return cnf->referencesTable(table.second); });
-			if (inLeft && inRight)
-				topCNF.push_back(cnf);
-			else if (inLeft)
-				leftCNF.push_back(cnf);
-			else
-				rightCNF.push_back(cnf);
-		}
-
-		// instead of using string, we use ExprTreePtr to represent the expressions
-		// because reversing string is quit annoying
-		vector<ExprTreePtr> leftExprs;
-		vector<ExprTreePtr> rightExprs;
-		// we cannot use targetExprs directly, because we now don't need all of them
-		// we need to pick the out from targetExprs
-		vector<ExprTreePtr> topExprs;
-		MyDB_SchemaPtr leftSchema = make_shared<MyDB_Schema>();
-		MyDB_SchemaPtr rightSchema = make_shared<MyDB_Schema>();
-		MyDB_SchemaPtr topSchema = make_shared<MyDB_Schema>();
-
-		for (auto table : leftTables)
-		{
-			auto leftTable = allTables[table.first];
-			for (auto att : leftTable->getSchema()->getAtts())
+			vector<pair<string, string>> leftTables;
+			vector<pair<string, string>> rightTables;
+			for (int j = 0; j < targetTables.size(); j++)
 			{
-
-				bool needInSelect = any_of(targetExprs.begin(), targetExprs.end(), [&att, &table](const ExprTreePtr &exp)
-																	 { return exp->referencesAtt(table.second, att.first); });
-				bool needInCNF = any_of(CNF.begin(), CNF.end(), [&att, &table](const ExprTreePtr &exp)
-																{ return exp->referencesAtt(table.second, att.first); });
-
-				ExprTreePtr idExp = make_shared<Identifier>(strdup(table.second.c_str()), strdup(att.first.c_str()));
-
-				if (needInSelect || needInCNF)
+				if ((i >> j) & 1)
 				{
-					leftSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
-					leftExprs.push_back(idExp);
+					leftTables.push_back(targetTables[j]);
 				}
-
-				if (needInSelect)
+				else
 				{
-					topSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
-					topExprs.push_back(idExp);
+					rightTables.push_back(targetTables[j]);
 				}
+			}
+
+			// sort(targetTables.begin(), targetTables.end(), [&allTables](const pair<string, string> &a, const pair<string, string> &b)
+			// 		 { return allTables[a.first]->getTupleCount() < allTables[b.first]->getTupleCount(); });
+
+			// we will only put the biggest table on the left
+			// for (int i = 0; i < targetTables.size(); i++)
+			// {
+			// 	if (i % 2 == 0)
+			// 		leftTables.push_back(targetTables[i]);
+			// 	else
+			// 		rightTables.push_back(targetTables[i]);
+			// }
+			// cout << "left tables: ";
+			// for (auto table : leftTables)
+			// {
+			// 	cout << allTables[table.first]->getTupleCount() << " ";
+			// }
+
+			// cout << endl;
+
+			// cout << "right tables: ";
+
+			// for (auto table : rightTables)
+			// {
+			// 	cout << allTables[table.first]->getTupleCount() << " ";
+			// }
+
+			// cout << endl;
+
+			// exit(1);
+
+			// find the various parts of the CNF
+			vector<ExprTreePtr> leftCNF;
+			vector<ExprTreePtr> rightCNF;
+			vector<ExprTreePtr> topCNF;
+
+			for (auto cnf : CNF)
+			{
+				bool inLeft = any_of(leftTables.begin(), leftTables.end(), [&cnf](const pair<string, string> &table)
+														 { return cnf->referencesTable(table.second); });
+				bool inRight = any_of(rightTables.begin(), rightTables.end(), [&cnf](const pair<string, string> &table)
+															{ return cnf->referencesTable(table.second); });
+				if (inLeft && inRight)
+					topCNF.push_back(cnf);
+				else if (inLeft)
+					leftCNF.push_back(cnf);
+				else
+					rightCNF.push_back(cnf);
+			}
+
+			// instead of using string, we use ExprTreePtr to represent the expressions
+			// because reversing string is quit annoying
+			vector<ExprTreePtr> leftExprs;
+			vector<ExprTreePtr> rightExprs;
+			// we cannot use targetExprs directly, because we now don't need all of them
+			// we need to pick the out from targetExprs
+			vector<ExprTreePtr> topExprs;
+			MyDB_SchemaPtr leftSchema = make_shared<MyDB_Schema>();
+			MyDB_SchemaPtr rightSchema = make_shared<MyDB_Schema>();
+			MyDB_SchemaPtr topSchema = make_shared<MyDB_Schema>();
+
+			for (auto table : leftTables)
+			{
+				auto leftTable = allTables[table.first];
+				for (auto att : leftTable->getSchema()->getAtts())
+				{
+
+					bool needInSelect = any_of(targetExprs.begin(), targetExprs.end(), [&att, &table](const ExprTreePtr &exp)
+																		 { return exp->referencesAtt(table.second, att.first); });
+					bool needInCNF = any_of(CNF.begin(), CNF.end(), [&att, &table](const ExprTreePtr &exp)
+																	{ return exp->referencesAtt(table.second, att.first); });
+
+					ExprTreePtr idExp = make_shared<Identifier>(strdup(table.second.c_str()), strdup(att.first.c_str()));
+
+					if (needInSelect || needInCNF)
+					{
+						leftSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
+						leftExprs.push_back(idExp);
+					}
+
+					if (needInSelect)
+					{
+						topSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
+						topExprs.push_back(idExp);
+					}
+				}
+			}
+
+			for (auto table : rightTables)
+			{
+				auto rightTable = allTables[table.first];
+				for (auto att : rightTable->getSchema()->getAtts())
+				{
+
+					bool needInSelect = any_of(targetExprs.begin(), targetExprs.end(), [&att, &table](const ExprTreePtr &exp)
+																		 { return exp->referencesAtt(table.second, att.first); });
+					bool needInCNF = any_of(CNF.begin(), CNF.end(), [&att, &table](const ExprTreePtr &exp)
+																	{ return exp->referencesAtt(table.second, att.first); });
+
+					ExprTreePtr idExp = make_shared<Identifier>(strdup(table.second.c_str()), strdup(att.first.c_str()));
+
+					if (needInSelect || needInCNF)
+					{
+						rightSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
+						rightExprs.push_back(idExp);
+					}
+
+					if (needInSelect)
+					{
+						topSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
+						topExprs.push_back(idExp);
+					}
+				}
+			}
+
+			// we cannot give it a predicated name, because now we have recursion, we need to give it a unique name
+			string tableName = "join";
+			for (auto table : targetTables)
+			{
+				tableName += ("_" + table.second);
+			}
+
+			// do it recursively
+			LogicalOpPtr leftJoin = join(allTables, allTableReaderWriters, leftExprs, leftTables, leftCNF);
+			LogicalOpPtr rightJoin = join(allTables, allTableReaderWriters, rightExprs, rightTables, rightCNF);
+
+			LogicalOpPtr local = make_shared<LogicalJoin>(
+					leftJoin, rightJoin,
+					make_shared<MyDB_Table>(tableName, tableName + storageSuffix, topSchema),
+					topCNF, topExprs);
+
+			auto cost = local->cost();
+			if (cost.first < minCost)
+			{
+				minCost = cost.first;
+				res = local;
 			}
 		}
 
-		for (auto table : rightTables)
-		{
-			auto rightTable = allTables[table.first];
-			for (auto att : rightTable->getSchema()->getAtts())
-			{
-
-				bool needInSelect = any_of(targetExprs.begin(), targetExprs.end(), [&att, &table](const ExprTreePtr &exp)
-																	 { return exp->referencesAtt(table.second, att.first); });
-				bool needInCNF = any_of(CNF.begin(), CNF.end(), [&att, &table](const ExprTreePtr &exp)
-																{ return exp->referencesAtt(table.second, att.first); });
-
-				ExprTreePtr idExp = make_shared<Identifier>(strdup(table.second.c_str()), strdup(att.first.c_str()));
-
-				if (needInSelect || needInCNF)
-				{
-					rightSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
-					rightExprs.push_back(idExp);
-				}
-
-				if (needInSelect)
-				{
-					topSchema->getAtts().emplace_back(table.second + "_" + att.first, att.second);
-					topExprs.push_back(idExp);
-				}
-			}
-		}
-
-		// we cannot give it a predicated name, because now we have recursion, we need to give it a unique name
-		string tableName = "join";
-		for (auto table : targetTables)
-		{
-			tableName += ("_" + table.second);
-		}
-
-		// do it recursively
-		LogicalOpPtr leftJoin = join(allTables, allTableReaderWriters, leftExprs, leftTables, leftCNF);
-		LogicalOpPtr rightJoin = join(allTables, allTableReaderWriters, rightExprs, rightTables, rightCNF);
-
-		LogicalOpPtr res = make_shared<LogicalJoin>(
-				leftJoin, rightJoin,
-				make_shared<MyDB_Table>(tableName, tableName + storageSuffix, topSchema),
-				topCNF, topExprs);
+		// we need to sort the tables
 
 		return res;
 	}

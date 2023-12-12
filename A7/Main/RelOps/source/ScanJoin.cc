@@ -73,20 +73,15 @@ void ScanJoin ::run()
 	// get the left input record
 	MyDB_RecordPtr leftInputRec = leftTable->getEmptyRecord();
 
-	cout << "left table: " << leftTable->getTable()->getSchema() << endl;
-
 	// and get the various functions whose output we'll hash
 	vector<func> leftEqualities;
 	for (auto &p : equalityChecks)
 	{
-		cout << "left equality: " << p.first << endl;
 		leftEqualities.push_back(leftInputRec->compileComputation(p.first));
 	}
-	cout << "left predicate: " << leftSelectionPredicate << endl;
 	// now get the predicate
 	func leftPred = leftInputRec->compileComputation(leftSelectionPredicate);
 
-	cout << "left compuled\n";
 	// add all of the records to the hash table
 	MyDB_RecordIteratorAltPtr myIter = getIteratorAlt(allData);
 
@@ -126,8 +121,6 @@ void ScanJoin ::run()
 	// now get the predicate
 	func rightPred = rightInputRec->compileComputation(rightSelectionPredicate);
 
-	cout << "right compuled\n";
-
 	// and get the schema that results from combining the left and right records
 	MyDB_SchemaPtr mySchemaOut = make_shared<MyDB_Schema>();
 	for (auto &p : leftTable->getTable()->getSchema()->getAtts())
@@ -148,8 +141,6 @@ void ScanJoin ::run()
 	{
 		finalComputations.push_back(combinedRec->compileComputation(s));
 	}
-
-	cout << "final compuled\n";
 
 	// this is the output record
 	MyDB_RecordPtr outputRec = output->getEmptyRecord();

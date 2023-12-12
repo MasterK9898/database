@@ -89,6 +89,8 @@ MyDB_TableReaderWriterPtr LogicalAggregate ::execute()
 
 	aggregate.run();
 
+	// cout << "agg finished" << endl;
+
 	return output;
 }
 // we don't really count the cost of the aggregate, so cost its subplan and return that
@@ -115,7 +117,7 @@ pair<double, MyDB_StatsPtr> LogicalJoin ::cost()
 // sides should be deleted (via a kill to killFile () on the buffer manager)
 MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 {
-	// cout << "target " << outputSpec->getName() << ": JOIN START" << endl;
+
 	// first we need to execute the left and right, to get the left and right table reader writer
 	auto left = leftInputOp->execute();
 	auto right = rightInputOp->execute();
@@ -124,6 +126,10 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 		cout << "left or right table is null" << endl;
 		exit(1);
 	}
+
+	// auto print = joinPredicates(outputSelectionPredicate, true);
+	// cout << "target " << outputSpec->getName() << ": JOIN START"
+	// 		 << " | left: " << left->getTable()->getName() << " | right: " << right->getTable()->getName() << " | pred: " << print << endl;
 
 	auto bufferMgr = left->getBufferMgr();
 
@@ -174,9 +180,11 @@ MyDB_TableReaderWriterPtr LogicalJoin ::execute()
 
 	MyDB_TableReaderWriterPtr outputTable = make_shared<MyDB_TableReaderWriter>(outputSpec, left->getBufferMgr());
 
-	SortMergeJoin sortMergeJoin(left, right, outputTable, finalPred, projections, equalityChecks[0], leftSelectionPredicateString, rightSelectionPredicateString);
-	sortMergeJoin.run();
+	// SortMergeJoin sortMergeJoin(left, right, outputTable, finalPred, projections, equalityChecks[0], leftSelectionPredicateString, rightSelectionPredicateString);
+	// sortMergeJoin.run();
 
+	ScanJoin scanJoin(left, right, outputTable, finalPred, projections, equalityChecks, leftSelectionPredicateString, rightSelectionPredicateString);
+	scanJoin.run();
 	// cout << "target " << outputSpec->getName() << ": JOIN COMPLETE" << endl;
 
 	bufferMgr->killTable(left->getTable());
@@ -227,6 +235,7 @@ MyDB_TableReaderWriterPtr LogicalConvertScan::execute()
 		cout << "input table is null" << endl;
 		exit(1);
 	}
+	// cout << "conversion started" << endl;
 
 	auto bufferMgr = input->getBufferMgr();
 
